@@ -7,9 +7,9 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
-  jdbc,
-  cache,
-  "org.postgresql" % "postgresql" % "9.4-1201-jdbc41",
+  "org.codehaus.janino" % "janino" % "3.0.7",
+  "org.webjars.bower" % "angular-animate" % "1.6.5",
+  "org.webjars.bower" % "angular-ui-codemirror" % "0.3.0",
   ws
 )
 
