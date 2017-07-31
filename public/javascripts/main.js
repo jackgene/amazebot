@@ -7,8 +7,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
     function turnRight() {
       var oldH = move.horizontal, oldV = move.vertical;
 
-      move.horizontal = oldH != 0 ? 0 : oldV;
-      move.vertical = oldV != 0 ? 0 : -oldH;
+      move.horizontal = oldH != 0 ? 0 : -oldV;
+      move.vertical = oldV != 0 ? 0 : oldH;
       console.log("move.h: " + move.horizontal);
       console.log("move.v: " + move.vertical);
     }
@@ -40,13 +40,13 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
     "topPx": 235,
     "left": "235px",
     "top": "235px"
-  }
+  };
 
   $scope.editorOptions = {
     lineWrapping : true,
     lineNumbers: true,
     matchBrackets: true,
-    mode: 'text/x-java',
+    mode: 'text/x-java'
   };
   $scope.code =
     '// Control the red box using the "robot" object.\n' +
@@ -61,8 +61,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
 
 
   $scope.runSimulation = function() {
-    console.log("POST: " + location.protocol + '//' + location.host + "/run-simulation.js")
-    console.log("POST data: " + $scope.code)
+    console.log("POST: " + location.protocol + '//' + location.host + "/run-simulation.js");
+    console.log("POST data: " + $scope.code);
     $http({
       method: 'POST',
       url: location.protocol + '//' + location.host + "/run-simulation.js",
