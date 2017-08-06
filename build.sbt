@@ -8,7 +8,6 @@ scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
   "org.codehaus.janino" % "janino" % "3.0.7",
-  "org.webjars.bower" % "angular-animate" % "1.6.5",
   "org.webjars.bower" % "angular-ui-codemirror" % "0.3.0",
   ws
 )
