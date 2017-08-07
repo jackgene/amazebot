@@ -1,8 +1,8 @@
 var roombaSimApp = angular.module(
-  'roombaSimApp', ['ui.codemirror']
+  'roombaSimApp', ['ngCookies', 'ui.codemirror']
 );
 
-roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout) {
+roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $timeout) {
   var cellSize = 30, move = {'horizontal': 0, 'vertical': -cellSize};
 
   function processRobotInstructions(steps) {
@@ -76,19 +76,22 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
   };
 
 
-  $http({
-    method: 'GET',
-    url: location.protocol + '//' + location.host + '/assets/java/TemplateRobot.java'
-  }).
-  then(
-    function successCallback(response) {
-      console.log('Received: ' + response.data);
-      $scope.code = response.data;
-    },
-    function errorCallback(response) {
-      console.log('Error obtaining template source:');
-      console.log('status: ' + response.status);
-      console.log('data: ' + response.data);
-    }
-  )
+  $scope.code = $cookies.get('code');
+  if (!$scope.code) {
+    $http({
+      method: 'GET',
+      url: location.protocol + '//' + location.host + '/assets/java/TemplateRobot.java'
+    }).
+    then(
+      function successCallback(response) {
+        console.log('Received: ' + response.data);
+        $scope.code = response.data;
+      },
+      function errorCallback(response) {
+        console.log('Error obtaining template source:');
+        console.log('status: ' + response.status);
+        console.log('data: ' + response.data);
+      }
+    )
+  }
 });
