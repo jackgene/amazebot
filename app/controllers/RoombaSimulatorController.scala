@@ -10,8 +10,7 @@ import play.api.mvc._
  * This controller creates an `Action` to handle HTTP requests to the
  * application's home page.
  */
-object RoombaSimController extends Controller {
-
+object RoombaSimulatorController extends Controller {
   /**
    * Create an Action to render an HTML page.
    *
