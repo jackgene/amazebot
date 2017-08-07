@@ -1,7 +1,9 @@
-var roombaSimApp = angular.module('roombaSimApp', ['ui.codemirror']);
+var roombaSimApp = angular.module(
+  'roombaSimApp', ['ui.codemirror']
+);
 
 roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout) {
-  var cellSize = 30, move = {"horizontal": 0, "vertical": -cellSize};
+  var cellSize = 30, move = {'horizontal': 0, 'vertical': -cellSize};
 
   function processRobotInstructions(steps) {
     function turnRight() {
@@ -9,8 +11,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
 
       move.horizontal = oldH != 0 ? 0 : -oldV;
       move.vertical = oldV != 0 ? 0 : oldH;
-      console.log("move.h: " + move.horizontal);
-      console.log("move.v: " + move.vertical);
+      console.log('move.h: ' + move.horizontal);
+      console.log('move.v: ' + move.vertical);
     }
     function moveForward() {
       $scope.pos.leftPx = $scope.pos.leftPx + move.horizontal;
@@ -18,8 +20,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
 
       $scope.pos.left = $scope.pos.leftPx + 'px';
       $scope.pos.top = $scope.pos.topPx + 'px';
-      console.log("left: " + $scope.pos.left);
-      console.log("top: " + $scope.pos.top);
+      console.log('left: ' + $scope.pos.left);
+      console.log('top: ' + $scope.pos.top);
     }
 
     switch(steps[0]) {
@@ -36,10 +38,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
   }
 
   $scope.pos = {
-    "leftPx": 235,
-    "topPx": 235,
-    "left": "235px",
-    "top": "235px"
+    'leftPx': 235,
+    'topPx': 235,
+    'left': '235px',
+    'top': '235px'
   };
 
   $scope.editorOptions = {
@@ -48,29 +50,19 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
     matchBrackets: true,
     mode: 'text/x-java'
   };
-  $scope.code =
-    '// Control the red box using the "robot" object.\n' +
-    '// Robot supports the following operations:\n' +
-    '// - moveForward() - one step forward\n' +
-    '// - turnRight() - turn 90 degrees right\n' +
-    'for (int i = 0; i < 4; ++ i) {\n' +
-    '  robot.moveForward();\n' +
-    '  robot.moveForward();\n' +
-    '  robot.turnRight();\n' +
-    '}';
-
 
   $scope.runSimulation = function() {
-    console.log("POST: " + location.protocol + '//' + location.host + "/run-simulation.js");
-    console.log("POST data: " + $scope.code);
+    console.log('POST: ' + location.protocol + '//' + location.host + '/run-simulation.js');
+    console.log('POST data: ' + $scope.code);
     $http({
       method: 'POST',
-      url: location.protocol + '//' + location.host + "/run-simulation.js",
+      url: location.protocol + '//' + location.host + '/run-simulation.js',
       headers: {
         'Content-Type': undefined
       },
       data: $scope.code
-    }).then(
+    }).
+    then(
       function successCallback(response) {
         console.log('Received: ' + response.data);
         processRobotInstructions(response.data);
@@ -82,4 +74,21 @@ roombaSimApp.controller('roombaSimController', function ($scope, $http, $timeout
       }
     );
   };
+
+
+  $http({
+    method: 'GET',
+    url: location.protocol + '//' + location.host + '/assets/java/TemplateRobot.java'
+  }).
+  then(
+    function successCallback(response) {
+      console.log('Received: ' + response.data);
+      $scope.code = response.data;
+    },
+    function errorCallback(response) {
+      console.log('Error obtaining template source:');
+      console.log('status: ' + response.status);
+      console.log('data: ' + response.data);
+    }
+  )
 });

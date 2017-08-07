@@ -1,7 +1,5 @@
 package controllers
 
-import javax.inject._
-
 import models.Robot
 import models.Robot.{MoveForward, Operation, TurnRight}
 import org.codehaus.commons.compiler.CompilerFactoryFactory
@@ -25,6 +23,7 @@ object RoombaSimController extends Controller {
     Ok(views.html.index())
   }
 
+  private val ClassNameExtractor = "(?s).*public class ([A-Za-z][A-Za-z0-9]+).*".r
   /**
     * Runs the simulation.
     */
@@ -34,12 +33,16 @@ object RoombaSimController extends Controller {
         for {
           steps: Seq[Operation] <- (
             for (codeBlock: String <- request.body.asText) yield {
-              val evaluator = CompilerFactoryFactory.getDefaultCompilerFactory.newScriptEvaluator()
-              evaluator.setParameters(Array("robot"), Array[Class[_]](classOf[Robot]))
-              evaluator.cook(s"${codeBlock}")
+              val ClassNameExtractor(className: String) = codeBlock
+              val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
+              compiler.cook(codeBlock)
+
+              val classLoader = compiler.getClassLoader
+              val controllerClass = classLoader.loadClass(className)
+              val runMethod = controllerClass.getMethod("run", classOf[Robot])
 
               val robot = new Robot
-              evaluator.evaluate(Array(robot))
+              runMethod.invoke(null, robot)
 
               robot.steps.reverse
             }
