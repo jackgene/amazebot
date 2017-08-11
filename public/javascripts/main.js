@@ -32,7 +32,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $timeout(function() { processRobotInstructions(steps.slice(1)) }, 200);
         break;
     }
-  };
+  }
 
   function establishWebsocketConnection() {
     dataStream = $websocket('ws://' + location.host + '/simulation');
@@ -42,7 +42,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     dataStream.onClose(function() {
       dataStream = null;
     });
-  };
+  }
 
   $scope.pos = {
     'left': posLeftPx + 'px',

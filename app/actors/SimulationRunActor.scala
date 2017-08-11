@@ -29,7 +29,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
             setPriority(Thread.MIN_PRIORITY)
           }
 
-          // SecurityManager stuff?
+          // TODO put SecurityManager here
 
           // A bit heavy handed, but makes sure any malicious/poorly written
           // code in main is stopped, that may not be stopped by the default
