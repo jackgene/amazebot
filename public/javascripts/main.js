@@ -36,7 +36,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
   function establishWebsocketConnection() {
     dataStream = $websocket(
-      location.protocol === 'https:' ? 'wss://' : 'ws://' + location.host + '/simulation'
+      (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/simulation'
     );
     dataStream.onMessage(function(message) {
       processRobotInstructions(JSON.parse(message.data));
