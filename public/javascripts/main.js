@@ -1,9 +1,10 @@
 var roombaSimApp = angular.module(
-  'roombaSimApp', ['ngCookies', 'ui.codemirror']
+  'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
-
-roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $timeout) {
-  var cellSize = 30, move = {'horizontal': 0, 'vertical': -cellSize};
+roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $timeout) {
+  var cellSize = 30, posLeftPx = 235, posTopPx = 235,
+    move = {'horizontal': 0, 'vertical': -cellSize},
+    dataStream;
 
   function processRobotInstructions(steps) {
     function turnRight() {
@@ -11,17 +12,13 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
       move.horizontal = oldH != 0 ? 0 : -oldV;
       move.vertical = oldV != 0 ? 0 : oldH;
-      console.log('move.h: ' + move.horizontal);
-      console.log('move.v: ' + move.vertical);
     }
     function moveForward() {
-      $scope.pos.leftPx = $scope.pos.leftPx + move.horizontal;
-      $scope.pos.topPx = $scope.pos.topPx + move.vertical;
+      posLeftPx += move.horizontal;
+      posTopPx += move.vertical;
 
-      $scope.pos.left = $scope.pos.leftPx + 'px';
-      $scope.pos.top = $scope.pos.topPx + 'px';
-      console.log('left: ' + $scope.pos.left);
-      console.log('top: ' + $scope.pos.top);
+      $scope.pos.left = posLeftPx + 'px';
+      $scope.pos.top = posTopPx + 'px';
     }
 
     switch(steps[0]) {
@@ -35,13 +32,21 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $timeout(function() { processRobotInstructions(steps.slice(1)) }, 200);
         break;
     }
-  }
+  };
+
+  function establishWebsocketConnection() {
+    dataStream = $websocket('ws://' + location.host + '/simulation');
+    dataStream.onMessage(function(message) {
+      processRobotInstructions(JSON.parse(message.data));
+    });
+    dataStream.onClose(function() {
+      dataStream = null;
+    });
+  };
 
   $scope.pos = {
-    'leftPx': 235,
-    'topPx': 235,
-    'left': '235px',
-    'top': '235px'
+    'left': posLeftPx + 'px',
+    'top': posTopPx + 'px'
   };
 
   $scope.editorOptions = {
@@ -52,27 +57,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.runSimulation = function() {
-    console.log('POST: ' + location.protocol + '//' + location.host + '/run-simulation.js');
-    console.log('POST data: ' + $scope.code);
-    $http({
-      method: 'POST',
-      url: location.protocol + '//' + location.host + '/run-simulation.js',
-      headers: {
-        'Content-Type': undefined
-      },
-      data: $scope.code
-    }).
-    then(
-      function successCallback(response) {
-        console.log('Received: ' + response.data);
-        processRobotInstructions(response.data);
-      },
-      function errorCallback(response) {
-        console.log('Error running simulation:');
-        console.log('status: ' + response.status);
-        console.log('data: ' + response.data);
-      }
-    );
+    if (!dataStream) establishWebsocketConnection();
+    dataStream.send($scope.code);
   };
 
 
@@ -84,7 +70,6 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     }).
     then(
       function successCallback(response) {
-        console.log('Received: ' + response.data);
         $scope.code = response.data;
       },
       function errorCallback(response) {

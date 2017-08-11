@@ -1,14 +1,19 @@
 package controllers
 
+import actors.SimulationSessionActor
 import models.Robot
 import models.Robot.{MoveForward, Operation, TurnRight}
 import org.codehaus.commons.compiler.CompilerFactoryFactory
-import play.api.libs.json.Json
+import play.api.Play.current
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 
 /**
  * This controller creates an `Action` to handle HTTP requests to the
  * application's home page.
+  *
+  * @author Jack Leow
+  * @since August 2017
  */
 object RoombaSimulatorController extends Controller {
   /**
@@ -23,6 +28,11 @@ object RoombaSimulatorController extends Controller {
   }
 
   private val ClassNameExtractor = "(?s).*public class ([A-Za-z][A-Za-z0-9]+).*".r
+
+  def simulation() = WebSocket.acceptWithActor[String, JsValue] { request => webSocketOut =>
+    SimulationSessionActor.props(webSocketOut)
+  }
+
   /**
     * Runs the simulation.
     */

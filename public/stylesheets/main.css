@@ -1,11 +1,12 @@
 .input  {
     float: left;
-    width: 45%;
+    width: 50%;
+    height: 100%;
 }
 
 .output {
     float: left;
-    width: 55%;
+    width: 50%;
 }
 
 #room {
@@ -20,5 +21,9 @@
     width: 30px;
     height: 30px;
     position: relative;
-    transition: top 45ms linear, left 45ms linear;
+    transition: top 200ms linear, left 200ms linear;
+}
+
+.CodeMirror {
+    height: 450px !important;
 }

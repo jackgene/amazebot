@@ -5,6 +5,7 @@
 
 # An example controller showing a sample home page
 GET     /                           controllers.RoombaSimulatorController.index
+GET     /simulation                 controllers.RoombaSimulatorController.simulation
 POST    /run-simulation.js          controllers.RoombaSimulatorController.runSimulation
 
 # Map static resources from the /public folder to the /assets URL path
