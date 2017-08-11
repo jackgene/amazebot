@@ -1,4 +1,4 @@
-name := """roomba-sim-web-poc"""
+name := """roomba-sim-poc"""
 
 version := "1.0-SNAPSHOT"
 
