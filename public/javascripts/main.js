@@ -2,34 +2,14 @@ var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $timeout) {
-  var cellSize = 30, posLeftPx = 235, posTopPx = 235,
-    move = {'horizontal': 0, 'vertical': -cellSize},
-    dataStream;
+  var posLeftPx = 235, posTopPx = 235, dataStream;
 
-  function processRobotInstructions(steps) {
-    function turnRight() {
-      var oldH = move.horizontal, oldV = move.vertical;
-
-      move.horizontal = oldH != 0 ? 0 : -oldV;
-      move.vertical = oldV != 0 ? 0 : oldH;
-    }
-    function moveForward() {
-      posLeftPx += move.horizontal;
-      posTopPx += move.vertical;
-
-      $scope.pos.left = posLeftPx + 'px';
-      $scope.pos.top = posTopPx + 'px';
-    }
-
-    switch(steps[0]) {
-      case 'r':
-        turnRight();
-        processRobotInstructions(steps.slice(1));
-        break;
-
-      case 'f':
-        moveForward();
-        $timeout(function() { processRobotInstructions(steps.slice(1)) }, 200);
+  function processRobotInstruction(instruction) {
+    switch (instruction.c) {
+      case 'mv':
+        $scope.pos.top = instruction.t + 'px';
+        $scope.pos.left = instruction.l + 'px';
+        $scope.pos.transform = 'rotate(' + instruction.o + 'turn)';
         break;
     }
   }
@@ -39,20 +19,21 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/simulation'
     );
     dataStream.onMessage(function(message) {
-      processRobotInstructions(JSON.parse(message.data));
+      processRobotInstruction(JSON.parse(message.data));
     });
     dataStream.onClose(function() {
       dataStream = null;
     });
   }
 
+  // Initialize from server
   $scope.pos = {
-    'left': posLeftPx + 'px',
-    'top': posTopPx + 'px'
+    left: posLeftPx + 'px',
+    top: posTopPx + 'px'
   };
 
   $scope.editorOptions = {
-    lineWrapping : true,
+    lineWrapping: true,
     lineNumbers: true,
     matchBrackets: true,
     mode: 'text/x-java'

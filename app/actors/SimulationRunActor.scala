@@ -4,15 +4,34 @@ import java.lang.reflect.Method
 import java.util.concurrent.{Executors, ThreadFactory}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import models.{RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.SimpleIRobot
-import play.api.libs.json.Json
+import play.api.libs.json.{JsPath, Json, Writes}
+import play.api.libs.functional.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object SimulationRunActor {
-  // Messages
+  // Incoming messages
+  case object UpdateView
+  case object RobotProgramExited
   case class DriveDirect(leftVelocity: Int, rightVelocity: Int)
 
+  // Outgoing messages
+  case class MoveRobot(position: RobotPosition)
+
+  // JSON writes
+  implicit val moveRobotWrites: Writes[MoveRobot] = (
+    (JsPath \ "c").write[String] and
+    (JsPath \ "t").write[Int] and
+    (JsPath \ "l").write[Int] and
+    (JsPath \ "o").write[Double]
+  )(
+    {
+      case MoveRobot(position: RobotPosition) =>
+        ("mv", position.top, position.left, position.orientationTurns)
+    }: MoveRobot => (String,Int,Int,Double)
+  )
   def props(webSocketOut: ActorRef, main: Method): Props = {
     Props(classOf[SimulationRunActor], webSocketOut, main)
   }
@@ -46,27 +65,61 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
     Future {
       SimpleIRobot.simulationRunHolder.set(self)
       main.invoke(null, Array[String]())
-      self ! "Done"
+      self ! RobotProgramExited
     } recoverWith {
       case t: Throwable =>
+        println("Exception in user program")
         t.printStackTrace()
         Future.failed(t)
     }
   }
 
-  override def receive: Receive = {
-    case DriveDirect(1, 1) =>
-      webSocketOut ! Json.toJson(Seq("f"))
+  private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
+    case DriveDirect(leftVelocity, rightVelocity) =>
+      val newTimeMillis = System.currentTimeMillis()
+      val newRobotPosition: RobotPosition = robotState match {
+        case RobotState(0, 0) => robotPosition
 
-    case DriveDirect(1, -1) =>
-      webSocketOut ! Json.toJson(Seq("r"))
+        case RobotState(leftVelocity: Int, rightVelocity: Int) if leftVelocity == rightVelocity =>
+          // TODO longer time = larger move
+//          val durationMillis = newTimeMillis - timeMillis
+          robotPosition.copy(
+            top = robotPosition.orientationTurns % 1.0 match {
+              case 0.0 => robotPosition.top - 30
+              case 0.5 => robotPosition.top + 30
+              case _ => robotPosition.top
+            },
+            left = robotPosition.orientationTurns % 1.0 match {
+              case 0.25 => robotPosition.left + 30
+              case 0.75 => robotPosition.left - 30
+              case _ => robotPosition.left
+            }
+          )
 
-    case "Done" =>
+        case RobotState(leftVelocity: Int, rightVelocity: Int) if leftVelocity == -rightVelocity =>
+          // TODO longer time = wider turn
+          robotPosition.copy(
+            orientationTurns = robotPosition.orientationTurns + (if (leftVelocity > 0) 0.25 else -0.25)
+          )
+      }
+
+      webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
+      context.become(
+        receive(
+          newTimeMillis,
+          RobotState(leftVelocity, rightVelocity),
+          newRobotPosition
+        )
+      )
+
+    case RobotProgramExited =>
+      // TODO do we care? if robot state is (0,0) end here?
       context.stop(self)
 
     case msg =>
       log.warning(s"Received unexpected $msg")
   }
+  override def receive = receive(System.currentTimeMillis, RobotState(0, 0), RobotPosition(235, 235, 0.0))
 
   override def postStop(): Unit = {
     executorService.shutdownNow()
