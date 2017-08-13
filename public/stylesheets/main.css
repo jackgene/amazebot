@@ -21,7 +21,7 @@
     width: 30px;
     height: 30px;
     position: relative;
-    transition: top 200ms linear, left 200ms linear;
+    transition: all 250ms linear;
 }
 
 .CodeMirror {
