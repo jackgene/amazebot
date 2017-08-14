@@ -3,23 +3,79 @@ package org.jointheleague.ecolban.rpirobot
 import actors.SimulationRunActor
 import akka.actor.ActorRef
 
+import scala.math.{max, min}
+
 object SimpleIRobot {
   val simulationRunHolder = new ThreadLocal[ActorRef]
+
+  val AfterCommandPauseTimeMillis = 20
 }
 class SimpleIRobot extends IRobotInterface {
   import SimpleIRobot._
 
+  val MaxVelocityMmS = 500
+  val MinVelocityMms = -500
+  val MaxRadiusMm = 2000
+  val MinRadiusMm = -2000
+
   private val simulationRun: ActorRef = simulationRunHolder.get
 
-  override def driveDirect(leftVelocity: Int, rightVelocity: Int) {
-    simulationRun ! SimulationRunActor.DriveDirect(leftVelocity, rightVelocity)
+  private def afterCommandPause(): Unit = Thread.sleep(AfterCommandPauseTimeMillis)
+
+  private def adjustedVelocity(velocityMms: Int) =
+    if (velocityMms > 0) min(velocityMms, MaxVelocityMmS)
+    else max(velocityMms, MinVelocityMms)
+
+  private def adjustedRadius(radiusMm: Int) =
+    if (radiusMm > 0) min(radiusMm, MaxRadiusMm)
+    else max(radiusMm, MinRadiusMm)
+
+  override def drive(velocityMmS: Int, radiusMm: Int): Unit = {
+    val adjVelocityMms: Int = adjustedVelocity(velocityMmS)
+    radiusMm match {
+      // Special case: straight line, per {@link IRobotInterface}
+      case 0x7FFF|0x8000 =>
+        simulationRun ! SimulationRunActor.Drive(
+          adjVelocityMms, None
+        )
+
+      // Special case: turn in place clockwise, per {@link IRobotInterface}
+      case 0xFFFF =>
+        simulationRun ! SimulationRunActor.Drive(
+          adjVelocityMms, Some(0)
+        )
+
+      // Special case: turn in place counter-clockwise, per {@link IRobotInterface}
+      case 0x0001 =>
+        simulationRun ! SimulationRunActor.Drive(
+          -adjVelocityMms, Some(0)
+        )
+
+      case radiusMm =>
+        simulationRun ! SimulationRunActor.Drive(
+          adjVelocityMms, Some(adjustedRadius(radiusMm))
+        )
+    }
+    afterCommandPause()
   }
 
-  override def closeConnection() {}
+  override def driveDirect(leftVelocity: Int, rightVelocity: Int): Unit = {
+    if (leftVelocity == rightVelocity)
+      drive(leftVelocity, 0x7FFF)
+    else if (leftVelocity == -rightVelocity)
+      drive(leftVelocity, 0)
+    else
+      drive((leftVelocity + rightVelocity + 1) / 2, ???) // TODO determine radius from left/right diff (need distance between wheels)
+  }
 
-  override def reset() {}
+  override def stop(): Unit = {
+    simulationRun ! SimulationRunActor.Drive(0, None)
+    afterCommandPause()
+  }
 
-  override def stop() {}
+  override def closeConnection(): Unit = {}
+
+  override def reset(): Unit = {}
 
   override def isCliffFrontLeft: Boolean = ???
 
@@ -132,8 +188,6 @@ class SimpleIRobot extends IRobotInterface {
   override def readSensors(i: Int): Unit = ???
 
   override def isWall: Boolean = ???
-
-  override def drive(i: Int, i1: Int): Unit = ???
 
   override def getWallSignal: Int = ???
 

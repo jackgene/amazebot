@@ -9,7 +9,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       case 'mv':
         $scope.pos.top = instruction.t + 'px';
         $scope.pos.left = instruction.l + 'px';
-        $scope.pos.transform = 'rotate(' + instruction.o + 'turn)';
+        $scope.pos.transform = 'rotate(' + instruction.o + 'rad)';
         break;
     }
   }
