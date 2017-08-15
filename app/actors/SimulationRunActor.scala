@@ -10,6 +10,7 @@ import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, Json, Writes}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 import scala.math.{cos, sin}
 import scala.util.{Failure, Success}
 
@@ -80,66 +81,78 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
     case Failure(t: Throwable) => println(":(")
   }
 
+  context.system.scheduler.schedule(250.millis, 250.millis, self, UpdateView)
+
+  private def moveRobot(
+      oldTimeMillis: Long, newTimeMillis: Long,
+      robotState: RobotState, oldRobotPosition: RobotPosition):
+      RobotPosition = {
+    val durationSecs = (newTimeMillis - oldTimeMillis) / 1000.0
+
+    robotState match {
+      // Not moving
+      case RobotState(0, _) => oldRobotPosition
+
+      // Turning in place
+      case RobotState(velocityMmS: Double, Some(0.0)) =>
+        oldRobotPosition.copy(
+          orientationRads =
+            oldRobotPosition.orientationRads +
+            (velocityMmS * durationSecs) / WheelDisplacementMmPerRadian
+        )
+
+      // Moving in a straight line
+      case RobotState(velocityMmS: Double, None) =>
+        val displacementMm = velocityMmS * durationSecs
+        val orientationRad = oldRobotPosition.orientationRads
+
+        oldRobotPosition.copy(
+          topMm = oldRobotPosition.topMm - (cos(orientationRad) * displacementMm),
+          leftMm = oldRobotPosition.leftMm + (sin(orientationRad) * displacementMm)
+        )
+
+      // Moving in a curve
+      case RobotState(velocityMmS: Double, Some(radiusMm: Double)) =>
+        val displacementMm = velocityMmS * durationSecs
+        val orientationDeltaRads = displacementMm / -radiusMm.toDouble
+        val orientationRads = oldRobotPosition.orientationRads
+        val newOrientationRads = orientationRads + orientationDeltaRads
+        val axisTop = oldRobotPosition.topMm - (sin(orientationRads) * radiusMm)
+        val axisLeft = oldRobotPosition.leftMm - (cos(orientationRads) * radiusMm)
+
+        oldRobotPosition.copy(
+          topMm = axisTop + sin(newOrientationRads) * radiusMm,
+          leftMm = axisLeft + cos(newOrientationRads) * radiusMm,
+          orientationRads = oldRobotPosition.orientationRads + orientationDeltaRads
+        )
+    }
+  }
+
   private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
-    case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double]) =>
+    case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
+        if newVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
       val newTimeMillis = System.currentTimeMillis()
-      val durationSecs = (newTimeMillis - timeMillis) / 1000.0
-      val newRobotPosition: RobotPosition = robotState match {
-        // Not moving
-        case RobotState(0, _) => robotPosition
 
-        // Turning in place
-        case RobotState(velocityMmS: Double, Some(0.0)) =>
-          robotPosition.copy(
-            orientationRads =
-              robotPosition.orientationRads +
-              (velocityMmS * durationSecs) / WheelDisplacementMmPerRadian
-          )
-
-        // Moving in a straight line
-        case RobotState(velocityMmS: Double, None) =>
-          val displacementMm = velocityMmS * durationSecs
-          val orientationRad = robotPosition.orientationRads
-
-          robotPosition.copy(
-            topMm = robotPosition.topMm - (cos(orientationRad) * displacementMm),
-            leftMm = robotPosition.leftMm + (sin(orientationRad) * displacementMm)
-          )
-
-        // Moving in a curve
-        case RobotState(velocityMmS: Double, Some(radiusMm: Double)) =>
-          val displacementMm = velocityMmS * durationSecs
-          val orientationDeltaRads = displacementMm / -radiusMm.toDouble
-          val orientationRads = robotPosition.orientationRads
-          val newOrientationRads = orientationRads + orientationDeltaRads
-          val axisTop = robotPosition.topMm - (sin(orientationRads) * radiusMm)
-          val axisLeft = robotPosition.leftMm - (cos(orientationRads) * radiusMm)
-
-          robotPosition.copy(
-            topMm = axisTop + sin(newOrientationRads) * radiusMm,
-            leftMm = axisLeft + cos(newOrientationRads) * radiusMm,
-            orientationRads = robotPosition.orientationRads + orientationDeltaRads
-          )
-      }
-
-      webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
       context.become(
         receive(
           newTimeMillis,
           RobotState(newVelocityMmS, newRadiusMm),
-          newRobotPosition
+          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
         )
       )
 
     case UpdateView =>
+      val newTimeMillis = System.currentTimeMillis()
+
+      webSocketOut ! Json.toJson(
+        MoveRobot(moveRobot(timeMillis, newTimeMillis, robotState, robotPosition))
+      )
 
     case RobotProgramExited =>
       // TODO do we care? if robot state is (0,0) end here?
       context.stop(self)
-
-    case msg =>
-      log.warning(s"Received unexpected $msg")
   }
+
   override def receive = receive(
     System.currentTimeMillis,
     RobotState(velocityMmS = 0, radiusMm = None),

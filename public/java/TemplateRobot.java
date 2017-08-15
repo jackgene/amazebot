@@ -26,14 +26,14 @@ public class CleverRobot extends IRobotAdapter {
 
 	private void setup() throws Exception {
 		driveDirect(500, 500);
-		Thread.sleep(3975);
+		Thread.sleep(1975);
 		driveDirect(100, -100);
 		Thread.sleep(1820);
 	}
 
 	private boolean loop() throws Exception {
-		drive(500, -2000);
-		Thread.sleep(5000);
+		drive(500, -1000);
+		Thread.sleep(10000);
 
 		return true;
 	}
