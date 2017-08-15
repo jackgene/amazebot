@@ -22,8 +22,9 @@ class SimulationSessionActor(webSocketOut: ActorRef) extends Actor with ActorLog
   private val ClassNameExtractor =
     """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
 
-  override def receive: Receive = {
+  private def receive(currentRunOpt: Option[ActorRef], run: Int): Receive = {
     case javaSource: String =>
+      currentRunOpt.foreach(context.stop)
       val PackageNameExtractor(packageName: String) = javaSource
       val ClassNameExtractor(className: String) = javaSource
       val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
@@ -32,6 +33,14 @@ class SimulationSessionActor(webSocketOut: ActorRef) extends Actor with ActorLog
       val classLoader = compiler.getClassLoader
       val controllerClass = classLoader.loadClass(s"${packageName}.${className}")
       val main: Method = controllerClass.getMethod("main", classOf[Array[String]])
-      context.actorOf(SimulationRunActor.props(webSocketOut, main))
+      val nextRun = run + 1
+      context.become(
+        receive(
+          Some(context.actorOf(SimulationRunActor.props(webSocketOut, main), s"run-${nextRun}")),
+          nextRun
+        )
+      )
   }
+
+  override def receive: Receive = receive(None, 0)
 }
