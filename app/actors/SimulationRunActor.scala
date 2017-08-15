@@ -143,7 +143,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
   override def receive = receive(
     System.currentTimeMillis,
     RobotState(velocityMmS = 0, radiusMm = None),
-    RobotPosition(topMm = 235, leftMm = 235, orientationRads = 0.0)
+    RobotPosition(topMm = 2500, leftMm = 2500, orientationRads = 0.0)
   )
 
   override def postStop(): Unit = {

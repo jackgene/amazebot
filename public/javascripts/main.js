@@ -2,13 +2,13 @@ var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $timeout) {
-  var posLeftPx = 235, posTopPx = 235, dataStream;
+  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream;
 
   function processRobotInstruction(instruction) {
     switch (instruction.c) {
       case 'mv':
-        $scope.pos.top = instruction.t + 'px';
-        $scope.pos.left = instruction.l + 'px';
+        $scope.pos.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
+        $scope.pos.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
         $scope.pos.transform = 'rotate(' + instruction.o + 'rad)';
         break;
     }
@@ -26,10 +26,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     });
   }
 
-  // Initialize from server
+  // TODO Initialize from server
   $scope.pos = {
-    left: posLeftPx + 'px',
-    top: posTopPx + 'px'
+    left: '233px',
+    top: '233px'
   };
 
   $scope.editorOptions = {
