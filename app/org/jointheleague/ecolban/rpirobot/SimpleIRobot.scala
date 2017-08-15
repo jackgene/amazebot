@@ -35,37 +35,45 @@ class SimpleIRobot extends IRobotInterface {
     radiusMm match {
       // Special case: straight line, per {@link IRobotInterface}
       case 0x7FFF|0x8000 =>
-        simulationRun ! SimulationRunActor.Drive(
-          adjVelocityMms, None
-        )
+        simulationRun ! SimulationRunActor.Drive(adjVelocityMms, None)
 
       // Special case: turn in place clockwise, per {@link IRobotInterface}
       case 0xFFFF =>
-        simulationRun ! SimulationRunActor.Drive(
-          adjVelocityMms, Some(0)
-        )
+        simulationRun ! SimulationRunActor.Drive(adjVelocityMms, Some(0.0))
 
       // Special case: turn in place counter-clockwise, per {@link IRobotInterface}
       case 0x0001 =>
-        simulationRun ! SimulationRunActor.Drive(
-          -adjVelocityMms, Some(0)
-        )
+        simulationRun ! SimulationRunActor.Drive(-adjVelocityMms, Some(0.0))
 
-      case radiusMm =>
+      case r =>
         simulationRun ! SimulationRunActor.Drive(
-          adjVelocityMms, Some(adjustedRadius(radiusMm))
+          adjVelocityMms, Some(adjustedRadius(r))
         )
     }
     afterCommandPause()
   }
 
   override def driveDirect(leftVelocity: Int, rightVelocity: Int): Unit = {
-    if (leftVelocity == rightVelocity)
-      drive(leftVelocity, 0x7FFF)
-    else if (leftVelocity == -rightVelocity)
-      drive(leftVelocity, 0)
-    else
-      drive((leftVelocity + rightVelocity + 1) / 2, ???) // TODO determine radius from left/right diff (need distance between wheels)
+    (adjustedVelocity(leftVelocity),adjustedVelocity(rightVelocity)) match {
+      case (adjLeftVelocity, adjRightVelocity) if adjLeftVelocity == adjRightVelocity =>
+        simulationRun ! SimulationRunActor.Drive(adjLeftVelocity, None)
+
+      case (adjLeftVelocity, adjRightVelocity) if adjLeftVelocity == -adjRightVelocity =>
+        simulationRun ! SimulationRunActor.Drive(adjLeftVelocity, Some(0.0))
+
+      case (adjLeftVelocity, adjRightVelocity) =>
+        simulationRun ! SimulationRunActor.Drive(
+          (adjLeftVelocity + adjRightVelocity) / 2,
+          (adjLeftVelocity, adjRightVelocity) match {
+            case (0, _) => Some(IRobotInterface.WHEEL_DISTANCE / 2.0)
+            case (_, 0) => Some(IRobotInterface.WHEEL_DISTANCE / -2.0)
+            case (alv, arv) =>
+              val ratio: Double = alv / arv.toDouble
+              Some((ratio + 1) * IRobotInterface.WHEEL_DISTANCE / 2.0 / (1 - ratio))
+          }
+        )
+    }
+    afterCommandPause()
   }
 
   override def stop(): Unit = {

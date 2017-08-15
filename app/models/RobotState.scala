@@ -6,7 +6,7 @@ case class RobotState(
    *
    * Valid values are [-500:500]
    */
-  velocityMmS: Int,
+  velocityMmS: Double,
 
   /**
    * Turning radius of the robot in mm.
@@ -15,5 +15,5 @@ case class RobotState(
    *
    * Absence of a value means the robot is moving in a straight line.
    */
-  radiusMm: Option[Int]
+  radiusMm: Option[Double]
 )

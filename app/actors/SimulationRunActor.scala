@@ -17,7 +17,7 @@ object SimulationRunActor {
   // Incoming messages
   case object UpdateView
   case object RobotProgramExited
-  case class Drive(velocityMmS: Int, radiusMm: Option[Int]) // TODO consider converting to mm/ms to simplify calculation
+  case class Drive(velocityMmS: Double, radiusMm: Option[Double])
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
@@ -81,7 +81,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
   }
 
   private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
-    case Drive(newVelocityMmS: Int, newRadiusMm: Option[Int]) =>
+    case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double]) =>
       val newTimeMillis = System.currentTimeMillis()
       val durationSecs = (newTimeMillis - timeMillis) / 1000.0
       val newRobotPosition: RobotPosition = robotState match {
@@ -89,7 +89,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
         case RobotState(0, _) => robotPosition
 
         // Turning in place
-        case RobotState(velocityMmS: Int, Some(0)) =>
+        case RobotState(velocityMmS: Double, Some(0.0)) =>
           robotPosition.copy(
             orientationRads =
               robotPosition.orientationRads +
@@ -97,7 +97,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
           )
 
         // Moving in a straight line
-        case RobotState(velocityMmS: Int, None) =>
+        case RobotState(velocityMmS: Double, None) =>
           val displacementMm = velocityMmS * durationSecs
           val orientationRad = robotPosition.orientationRads
 
@@ -107,7 +107,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
           )
 
         // Moving in a curve
-        case RobotState(velocityMmS: Int, Some(radiusMm)) =>
+        case RobotState(velocityMmS: Double, Some(radiusMm: Double)) =>
           val displacementMm = velocityMmS * durationSecs
           val orientationDeltaRads = displacementMm / -radiusMm.toDouble
           val orientationRads = robotPosition.orientationRads
