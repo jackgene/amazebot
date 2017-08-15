@@ -17,9 +17,9 @@
 }
 
 #robot {
-    background-color: red;
-    width: 30px;
-    height: 30px;
+    background-image: url('../images/roomba.png');
+    width: 35px;
+    height: 35px;
     position: relative;
     transition: all 250ms linear;
 }
