@@ -1,7 +1,7 @@
 var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
-roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $timeout) {
+roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout) {
   var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream;
 
   function processRobotInstruction(instruction) {
@@ -10,6 +10,13 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $scope.pos.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
         $scope.pos.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
         $scope.pos.transform = 'rotate(' + instruction.o + 'rad)';
+        break;
+
+      case 'msg':
+        $timeout(
+          function() {$window.alert(instruction.m)},
+          300
+        );
         break;
     }
   }

@@ -4,15 +4,17 @@ import java.lang.reflect.Method
 import java.util.concurrent.{Executors, ThreadFactory}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.pipe
+import models.Maze._
 import models.{RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.{IRobotInterface, SimpleIRobot}
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, Json, Writes}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.collection.immutable.SortedMap
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{cos, sin}
-import scala.util.{Failure, Success}
 
 object SimulationRunActor {
   // Incoming messages
@@ -22,6 +24,7 @@ object SimulationRunActor {
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
+  case class ShowNotification(message: String)
 
   // JSON writes
   implicit val moveRobotWrites: Writes[MoveRobot] = (
@@ -35,15 +38,43 @@ object SimulationRunActor {
         ("mv", position.topMm, position.leftMm, position.orientationRads)
     }: MoveRobot => (String,Double,Double,Double)
   )
+  implicit val showNotificationWrites: Writes[ShowNotification] = (
+    (JsPath \ "c").write[String] and
+    (JsPath \ "m").write[String]
+  )(
+    {
+      case ShowNotification(message: String) =>
+        ("msg", message)
+    }: ShowNotification => (String,String)
+  )
+
   def props(webSocketOut: ActorRef, main: Method): Props = {
     Props(classOf[SimulationRunActor], webSocketOut, main)
   }
 
+  private val RobotSizeRadius = 173.5
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
 }
 class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor with ActorLogging {
   import SimulationRunActor._
   import context.dispatcher
+
+  val obstructionsByTopEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
+    Double.NegativeInfinity -> Set(TopBoundary, RightBoundary, LeftBoundary),
+    5000.0 -> Set(BottomBoundary)
+  )
+  val obstructionsByRightEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
+    Double.PositiveInfinity -> Set(TopBoundary, RightBoundary, BottomBoundary),
+    0.0 -> Set(LeftBoundary)
+  )
+  val obstructionsByBottomEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
+    0.0 -> Set(TopBoundary),
+    Double.PositiveInfinity -> Set(RightBoundary, BottomBoundary, LeftBoundary)
+  )
+  val obstructionsByLeftEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
+    Double.NegativeInfinity -> Set(TopBoundary, BottomBoundary, LeftBoundary),
+    5000.0 -> Set(RightBoundary)
+  )
 
   val executorService = Executors.newSingleThreadExecutor(
     new ThreadFactory {
@@ -63,25 +94,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
     }
   )
 
-  {
-    implicit val ec = ExecutionContext.fromExecutorService(executorService)
-
-    Future {
-      SimpleIRobot.simulationRunHolder.set(self)
-      main.invoke(null, Array[String]())
-      RobotProgramExited
-    } recoverWith {
-      case t: Throwable =>
-        println("Exception in user program")
-        t.printStackTrace()
-        Future.failed(t)
-    }
-  } onComplete {
-    case Success(exited) => println(":)")
-    case Failure(t: Throwable) => println(":(")
-  }
-
-  context.system.scheduler.schedule(250.millis, 250.millis, self, UpdateView)
+  val viewUpdateScheduler = context.system.scheduler.schedule(0.millis, 250.millis, self, UpdateView)
 
   private def moveRobot(
       oldTimeMillis: Long, newTimeMillis: Long,
@@ -128,6 +141,18 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
     }
   }
 
+  private def isObstructed(robotPosition: RobotPosition): Boolean = {
+    (
+      obstructionsByTopEdge.to(robotPosition.topMm + RobotSizeRadius).values.toSet.flatten
+      intersect
+      obstructionsByRightEdge.from(robotPosition.leftMm - RobotSizeRadius).values.toSet.flatten
+      intersect
+      obstructionsByBottomEdge.from(robotPosition.topMm - RobotSizeRadius).values.toSet.flatten
+      intersect
+      obstructionsByLeftEdge.to(robotPosition.leftMm + RobotSizeRadius).values.toSet.flatten
+    ).nonEmpty
+  }
+
   private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
     case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
         if newVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
@@ -143,14 +168,17 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
 
     case UpdateView =>
       val newTimeMillis = System.currentTimeMillis()
+      val newRobotPosition: RobotPosition =
+        moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
 
-      webSocketOut ! Json.toJson(
-        MoveRobot(moveRobot(timeMillis, newTimeMillis, robotState, robotPosition))
-      )
+      webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
+      if (isObstructed(newRobotPosition)) {
+        webSocketOut ! Json.toJson(ShowNotification("You've hit a wall!"))
+        context.stop(self)
+      }
 
     case RobotProgramExited =>
-      // TODO do we care? if robot state is (0,0) end here?
-      context.stop(self)
+      if (robotState.velocityMmS == 0.0) context.stop(self)
   }
 
   override def receive = receive(
@@ -160,6 +188,23 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
   )
 
   override def postStop(): Unit = {
+    viewUpdateScheduler.cancel()
     executorService.shutdownNow()
   }
+
+  // Start simulation
+  {
+    implicit val ec = ExecutionContext.fromExecutorService(executorService)
+
+    Future {
+      SimpleIRobot.simulationRunHolder.set(self)
+      main.invoke(null, Array[String]())
+      RobotProgramExited
+    } recoverWith {
+      case t: Throwable =>
+        println("Exception in user program")
+        t.printStackTrace()
+        Future.failed(t)
+    }
+  } pipeTo context.self // TODO look into why this doesn't really work
 }
