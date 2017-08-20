@@ -1,15 +1,19 @@
 @()
 
 @main("Roomba Simulator") {
-    <div class="input">
+    <div id="input">
         <form ng-submit="runSimulation()">
-            <textarea ui-codemirror="editorOptions" ng-model="code"></textarea><br/>
+            <label>
+                <textarea ui-codemirror="editorOptions" ng-model="code"></textarea>
+            </label><br/>
             <input type="submit" value="Run" />
         </form>
     </div>
-    <div class="output">
+    <div id="output">
         <div id="world">
-            <div id="robot" ng-style="pos"></div>
+            <div id="finish" ng-style="finish"></div>
+            <div id="robot" ng-style="robot"></div>
+            <div class="wall" ng-repeat="wall in walls" ng-style="wall"></div>
         </div>
     </div>
 }

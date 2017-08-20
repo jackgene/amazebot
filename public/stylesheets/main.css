@@ -1,10 +1,23 @@
-.input  {
+.CodeMirror {
+    height: 450px !important;
+}
+
+.wall {
+    background-color: #bbb;
+    border: solid #eee 2px;
+    border-right-color: #999;
+    border-bottom-color: #888;
+    border-left-color: #ddd;
+    position: absolute;
+}
+
+#input  {
     float: left;
     width: 50%;
     height: 100%;
 }
 
-.output {
+#output {
     float: left;
     width: 50%;
 }
@@ -13,6 +26,7 @@
     width: 500px;
     height: 500px;
     border: solid black 1px;
+    position: fixed; /* So that children can be absolutely positioned */
     overflow: hidden;
 }
 
@@ -20,10 +34,14 @@
     background-image: url('../images/roomba.png');
     width: 35px;
     height: 35px;
-    position: relative;
+    position: absolute;
     transition: all 250ms linear;
 }
 
-.CodeMirror {
-    height: 450px !important;
+#finish {
+    background-color: #0b0;
+    border-radius: 50%;
+    width: 8px;
+    height: 8px;
+    position: absolute;
 }

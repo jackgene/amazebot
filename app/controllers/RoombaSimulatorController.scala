@@ -1,6 +1,7 @@
 package controllers
 
 import actors.SimulationSessionActor
+import models.Maze
 import play.api.Play.current
 import play.api.libs.json.JsValue
 import play.api.mvc._
@@ -24,6 +25,6 @@ object RoombaSimulatorController extends Controller {
     * Creates a simulation session.
     */
   def simulation() = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
-    SimulationSessionActor.props(webSocketOut)
+    SimulationSessionActor.props(webSocketOut, Maze.theMaze)
   }
 }

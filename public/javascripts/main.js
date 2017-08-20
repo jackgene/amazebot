@@ -6,10 +6,35 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
   function processRobotInstruction(instruction) {
     switch (instruction.c) {
+      case 'maze':
+        $scope.finish.top = instruction.ft * pxPerMm - 4 + 'px';
+        $scope.finish.left = instruction.fl * pxPerMm - 4 + 'px';
+        $scope.finish.display = 'block';
+        $scope.walls = instruction.w.map(function(wall) {
+          return {
+            top: wall.t * pxPerMm + 'px',
+            left: wall.l * pxPerMm + 'px',
+            height: wall.h * pxPerMm + 'px',
+            width: wall.w * pxPerMm + 'px'
+          };
+        });
+        break;
+
+      case 'init':
+        $scope.robot.display = 'none';
+        $scope.robot.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
+        $scope.robot.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
+        $scope.robot.transform = 'rotate(' + instruction.o + 'rad)';
+        $timeout(
+          function() { $scope.robot.display = 'block' },
+          100
+        );
+        break;
+
       case 'mv':
-        $scope.pos.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
-        $scope.pos.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
-        $scope.pos.transform = 'rotate(' + instruction.o + 'rad)';
+        $scope.robot.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
+        $scope.robot.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
+        $scope.robot.transform = 'rotate(' + instruction.o + 'rad)';
         break;
 
       case 'msg':
@@ -33,11 +58,14 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     });
   }
 
-  // TODO Initialize from server
-  $scope.pos = {
-    left: '233px',
-    top: '233px'
+  $scope.robot = {
+    display: 'none'
   };
+  $scope.finish = {
+    display: 'none'
+  };
+  $scope.walls = [
+  ];
 
   $scope.editorOptions = {
     lineWrapping: true,
@@ -69,4 +97,6 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       }
     )
   }
+
+  establishWebsocketConnection();
 });

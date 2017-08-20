@@ -5,13 +5,10 @@ import java.util.concurrent.{Executors, ThreadFactory}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
-import models.Maze._
-import models.{RobotPosition, RobotState}
+import models.{Maze, RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.{IRobotInterface, SimpleIRobot}
-import play.api.libs.functional.syntax._
-import play.api.libs.json.{JsPath, Json, Writes}
+import play.api.libs.json.Json
 
-import scala.collection.immutable.SortedMap
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{cos, sin}
@@ -24,57 +21,18 @@ object SimulationRunActor {
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
-  case class ShowNotification(message: String)
+  case class ShowMessage(message: String)
 
-  // JSON writes
-  implicit val moveRobotWrites: Writes[MoveRobot] = (
-    (JsPath \ "c").write[String] and
-    (JsPath \ "t").write[Double] and
-    (JsPath \ "l").write[Double] and
-    (JsPath \ "o").write[Double]
-  )(
-    {
-      case MoveRobot(position: RobotPosition) =>
-        ("mv", position.topMm, position.leftMm, position.orientationRads)
-    }: MoveRobot => (String,Double,Double,Double)
-  )
-  implicit val showNotificationWrites: Writes[ShowNotification] = (
-    (JsPath \ "c").write[String] and
-    (JsPath \ "m").write[String]
-  )(
-    {
-      case ShowNotification(message: String) =>
-        ("msg", message)
-    }: ShowNotification => (String,String)
-  )
-
-  def props(webSocketOut: ActorRef, main: Method): Props = {
-    Props(classOf[SimulationRunActor], webSocketOut, main)
+  def props(webSocketOut: ActorRef, maze: Maze, main: Method): Props = {
+    Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, main)
   }
 
-  private val RobotSizeRadius = 173.5
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
 }
-class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor with ActorLogging {
+class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) extends Actor with ActorLogging {
   import SimulationRunActor._
   import context.dispatcher
-
-  val obstructionsByTopEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
-    Double.NegativeInfinity -> Set(TopBoundary, RightBoundary, LeftBoundary),
-    5000.0 -> Set(BottomBoundary)
-  )
-  val obstructionsByRightEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
-    Double.PositiveInfinity -> Set(TopBoundary, RightBoundary, BottomBoundary),
-    0.0 -> Set(LeftBoundary)
-  )
-  val obstructionsByBottomEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
-    0.0 -> Set(TopBoundary),
-    Double.PositiveInfinity -> Set(RightBoundary, BottomBoundary, LeftBoundary)
-  )
-  val obstructionsByLeftEdge: SortedMap[Double,Set[Obstruction]] = SortedMap(
-    Double.NegativeInfinity -> Set(TopBoundary, BottomBoundary, LeftBoundary),
-    5000.0 -> Set(RightBoundary)
-  )
+  import models.ViewUpdateInstructions._
 
   val executorService = Executors.newSingleThreadExecutor(
     new ThreadFactory {
@@ -109,15 +67,15 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
       // Turning in place
       case RobotState(velocityMmS: Double, Some(0.0)) =>
         oldRobotPosition.copy(
-          orientationRads =
-            oldRobotPosition.orientationRads +
+          orientationRad =
+            oldRobotPosition.orientationRad +
             (velocityMmS * durationSecs) / WheelDisplacementMmPerRadian
         )
 
       // Moving in a straight line
       case RobotState(velocityMmS: Double, None) =>
         val displacementMm = velocityMmS * durationSecs
-        val orientationRad = oldRobotPosition.orientationRads
+        val orientationRad = oldRobotPosition.orientationRad
 
         oldRobotPosition.copy(
           topMm = oldRobotPosition.topMm - (cos(orientationRad) * displacementMm),
@@ -128,7 +86,7 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
       case RobotState(velocityMmS: Double, Some(radiusMm: Double)) =>
         val displacementMm = velocityMmS * durationSecs
         val orientationDeltaRads = displacementMm / -radiusMm.toDouble
-        val orientationRads = oldRobotPosition.orientationRads
+        val orientationRads = oldRobotPosition.orientationRad
         val newOrientationRads = orientationRads + orientationDeltaRads
         val axisTop = oldRobotPosition.topMm - (sin(orientationRads) * radiusMm)
         val axisLeft = oldRobotPosition.leftMm - (cos(orientationRads) * radiusMm)
@@ -136,21 +94,9 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
         oldRobotPosition.copy(
           topMm = axisTop + sin(newOrientationRads) * radiusMm,
           leftMm = axisLeft + cos(newOrientationRads) * radiusMm,
-          orientationRads = oldRobotPosition.orientationRads + orientationDeltaRads
+          orientationRad = oldRobotPosition.orientationRad + orientationDeltaRads
         )
     }
-  }
-
-  private def isObstructed(robotPosition: RobotPosition): Boolean = {
-    (
-      obstructionsByTopEdge.to(robotPosition.topMm + RobotSizeRadius).values.toSet.flatten
-      intersect
-      obstructionsByRightEdge.from(robotPosition.leftMm - RobotSizeRadius).values.toSet.flatten
-      intersect
-      obstructionsByBottomEdge.from(robotPosition.topMm - RobotSizeRadius).values.toSet.flatten
-      intersect
-      obstructionsByLeftEdge.to(robotPosition.leftMm + RobotSizeRadius).values.toSet.flatten
-    ).nonEmpty
   }
 
   private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
@@ -172,8 +118,12 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
         moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
 
       webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
-      if (isObstructed(newRobotPosition)) {
-        webSocketOut ! Json.toJson(ShowNotification("You've hit a wall!"))
+      if (maze.obstructionsInContact(newRobotPosition).nonEmpty) {
+        // TODO back up
+        webSocketOut ! Json.toJson(ShowMessage("You have hit a wall!"))
+        context.stop(self)
+      } else if (maze.hasFinished(newRobotPosition)) {
+        webSocketOut ! Json.toJson(ShowMessage("You have won!"))
         context.stop(self)
       }
 
@@ -184,7 +134,11 @@ class SimulationRunActor(webSocketOut: ActorRef, main: Method) extends Actor wit
   override def receive = receive(
     System.currentTimeMillis,
     RobotState(velocityMmS = 0, radiusMm = None),
-    RobotPosition(topMm = 2500, leftMm = 2500, orientationRads = 0.0)
+    RobotPosition(
+      topMm = maze.startPoint.topMm,
+      leftMm = maze.startPoint.leftMm,
+      orientationRad = maze.startOrientationRad
+    )
   )
 
   override def postStop(): Unit = {
