@@ -14,8 +14,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
           return {
             top: wall.t * pxPerMm + 'px',
             left: wall.l * pxPerMm + 'px',
-            height: wall.h * pxPerMm + 'px',
-            width: wall.w * pxPerMm + 'px'
+            height: wall.h * pxPerMm - 4 + 'px',
+            width: wall.w * pxPerMm - 4 + 'px'
           };
         });
         break;
