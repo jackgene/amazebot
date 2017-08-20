@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
 import models.{Maze, RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.{IRobotInterface, SimpleIRobot}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -117,14 +117,38 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       val newRobotPosition: RobotPosition =
         moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
 
-      webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
-      if (maze.obstructionsInContact(newRobotPosition).nonEmpty) {
-        // TODO back up
-        webSocketOut ! Json.toJson(ShowMessage("You have hit a wall!"))
+      val obstructed: Boolean = maze.obstructionsInContact(newRobotPosition).nonEmpty
+      lazy val finished: Boolean = maze.hasFinished(newRobotPosition)
+      if (obstructed || finished) {
+        val instrs: Seq[JsValue] = (obstructed, finished) match {
+          case (true, _) =>
+            val adjNewRobotPosition: RobotPosition = Iterator.
+              from(start = 1, step = (10000 / robotState.velocityMmS).toInt). // step = time taken to travel 10mm/1px
+              map { backupMillis: Int =>
+                println(s"$backupMillis -> ${newTimeMillis - backupMillis}")
+                moveRobot(timeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
+              }.
+              find { maze.obstructionsInContact(_).isEmpty }.
+              get
+            Seq(
+              Json.toJson(MoveRobot(adjNewRobotPosition)),
+              if (maze.hasFinished(adjNewRobotPosition)) Json.toJson(ShowMessage("You have won!"))
+              else Json.toJson(ShowMessage("You have hit a wall!"))
+            )
+
+          case (false, true) =>
+            Seq(
+              Json.toJson(MoveRobot(newRobotPosition)),
+              Json.toJson(ShowMessage("You have won!"))
+            )
+
+          case (false, false) => Seq()
+            // This will never happen. Shame on the Scala compiler for not being able to infer this.
+        }
+        instrs.foreach { webSocketOut ! _}
         context.stop(self)
-      } else if (maze.hasFinished(newRobotPosition)) {
-        webSocketOut ! Json.toJson(ShowMessage("You have won!"))
-        context.stop(self)
+      } else {
+        webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
       }
 
     case RobotProgramExited =>
