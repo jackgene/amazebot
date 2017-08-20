@@ -122,8 +122,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       if (obstructed || finished) {
         val instrs: Seq[JsValue] = (obstructed, finished) match {
           case (true, _) =>
+            val stepMillis: Int = (10000 / math.abs(robotState.velocityMmS)).toInt // step = time taken to travel 10mm/1px
             val adjNewRobotPosition: RobotPosition = Iterator.
-              from(start = 1, step = (10000 / robotState.velocityMmS).toInt). // step = time taken to travel 10mm/1px
+              from(start = stepMillis, step = stepMillis).
               map { backupMillis: Int =>
                 println(s"$backupMillis -> ${newTimeMillis - backupMillis}")
                 moveRobot(timeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
