@@ -13,14 +13,39 @@ body {
     border: solid black 2px;
 }
 
+#navigation {
+    position: absolute;
+    margin: 0;
+    padding: 7px;
+    left: 0;
+    right: 0;
+    height: 16px;
+    color: #fff;
+    background-color: #f16412;
+}
+
+#navigation li {
+    list-style-type: none;
+    float: left;
+    padding: 0 0.5em;
+    font-family: sans-serif;
+}
+
+#navigation li a {
+    color: #fff;
+    text-decoration: none;
+}
+
 #input  {
     position: absolute;
+    top: 30px;
     left: 0;
     right: 502px;
 }
 
 #output {
     position: absolute;
+    top: 30px;
     right: 2px;
     width: 500px;
 }
@@ -43,12 +68,12 @@ body {
 
 #finish {
     position: absolute;
-    color: #4a4;
-    background-color: #afa;
     padding: 4px;
     border-radius: 50%;
     width: 42px;
     height: 42px;
+    color: #4a4;
+    background-color: #afa;
     font-family: sans-serif;
     font-size: 0.7em;
     text-align: center;
@@ -58,7 +83,7 @@ body {
     position: absolute;
     left: 0;
     right: 0;
-    top: 550px;
+    top: 580px;
     bottom: 0;
     border: solid black 1px;
     overflow: scroll;
