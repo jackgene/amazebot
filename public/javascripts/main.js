@@ -87,6 +87,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     lineWrapping: true,
     lineNumbers: true,
     matchBrackets: true,
+    indentUnit: 4,
+    indentWithTabs: true,
     mode: 'text/x-java'
   };
 
