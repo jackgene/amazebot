@@ -1,7 +1,7 @@
 var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
-roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout) {
+roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
   var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream;
 
   function processRobotInstruction(instruction) {
@@ -43,6 +43,20 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
           300
         );
         break;
+
+      case 'log':
+        if (instruction.m != "" && instruction.m != "\n")
+          $scope.console.push(
+            {
+              type: instruction.t == 'e' ? 'stderr' : 'stdout',
+              text: instruction.m
+            }
+          );
+        $timeout(function() {
+          var console = document.getElementById("console");
+          console.scrollTop = console.scrollHeight;
+        }, 0, false);
+        break;
     }
   }
 
@@ -51,6 +65,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/simulation'
     );
     dataStream.onMessage(function(message) {
+      $log.log(message.data);
       processRobotInstruction(JSON.parse(message.data));
     });
     dataStream.onClose(function() {
@@ -58,6 +73,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     });
   }
 
+  $scope.console = [];
   $scope.robot = {
     display: 'none'
   };
@@ -91,9 +107,9 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $scope.code = response.data;
       },
       function errorCallback(response) {
-        console.log('Error obtaining template source:');
-        console.log('status: ' + response.status);
-        console.log('data: ' + response.data);
+        $log.log('Error obtaining template source:');
+        $log.log('status: ' + response.status);
+        $log.log('data: ' + response.data);
       }
     )
   }

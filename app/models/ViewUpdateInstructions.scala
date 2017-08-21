@@ -47,6 +47,24 @@ object ViewUpdateInstructions {
     }: InitializeRobot => (String,Double,Double,Double)
   )
 
+  implicit val printToConsoleWrites: Writes[PrintToConsole] = (
+    (JsPath \ "c").write[String] and
+    (JsPath \ "t").write[String] and
+    (JsPath \ "m").write[String]
+  )(
+    {
+      case PrintToConsole(msgType: ConsoleMessageType, msg: String) =>
+        (
+          "log",
+          msgType match {
+            case StdOut => "o"
+            case StdErr => "e"
+          },
+          msg
+        )
+    }: PrintToConsole => (String,String,String)
+  )
+
   implicit val moveRobotWrites: Writes[MoveRobot] = (
     (JsPath \ "c").write[String] and
     (JsPath \ "t").write[Double] and

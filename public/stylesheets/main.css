@@ -1,47 +1,69 @@
 .CodeMirror {
-    height: 450px !important;
+    height: 500px !important;
+    border: solid black 1px;
 }
 
 .wall {
+    position: absolute;
     background-color: #bbb;
     border: solid #eee 2px;
     border-right-color: #999;
     border-bottom-color: #888;
     border-left-color: #ddd;
-    position: absolute;
 }
 
 #input  {
-    float: left;
-    width: 50%;
-    height: 100%;
+    position: absolute;
+    left: 0;
+    right: 502px;
 }
 
 #output {
-    float: left;
-    width: 50%;
+    position: absolute;
+    right: 2px;
+    width: 500px;
 }
 
 #world {
+    position: absolute; /* So that children can be relatively positioned */
     width: 500px;
     height: 500px;
     border: solid black 1px;
-    position: fixed; /* So that children can be absolutely positioned */
     overflow: hidden;
 }
 
 #robot {
+    position: absolute;
     background-image: url('../images/roomba.png');
     width: 35px;
     height: 35px;
-    position: absolute;
     transition: all 250ms linear;
 }
 
 #finish {
+    position: absolute;
     background-color: #0b0;
     border-radius: 50%;
     width: 8px;
     height: 8px;
+}
+
+#console {
     position: absolute;
+    left: 0;
+    right: 0;
+    top: 550px;
+    bottom: 0;
+    border: solid black 1px;
+    overflow: scroll;
+}
+
+#console pre {
+    margin: 0;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    word-break: normal;
+}
+.stderr {
+    color: #d00;
 }

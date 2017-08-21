@@ -17,6 +17,11 @@ object SimulationSessionActor {
   // Outgoing messages
   case class DrawMaze(finish: Point, walls: Set[Maze.Wall])
   case class InitializeRobot(position: RobotPosition)
+  case class PrintToConsole(messageType: ConsoleMessageType, message: String)
+
+  sealed abstract class ConsoleMessageType
+  case object StdOut extends ConsoleMessageType
+  case object StdErr extends ConsoleMessageType
 
   def props(webSocketOut: ActorRef, maze: Maze): Props = {
     Props(classOf[SimulationSessionActor], webSocketOut, maze)

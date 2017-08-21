@@ -16,4 +16,7 @@
             <div class="wall" ng-repeat="wall in walls" ng-style="wall"></div>
         </div>
     </div>
+    <div id="console">
+        <pre class="line" ng-repeat="line in console" ng-class="line.type">{{line.text}}</pre>
+    </div>
 }
