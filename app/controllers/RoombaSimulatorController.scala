@@ -1,5 +1,7 @@
 package controllers
 
+import java.net.URLDecoder
+
 import actors.SimulationSessionActor
 import models.Maze
 import play.api.Play.current
@@ -18,7 +20,11 @@ object RoombaSimulatorController extends Controller {
    * The home page.
    */
   def index() = Action { implicit request: Request[AnyContent] =>
-    Redirect("/maze/level0") // TODO Read last attempted from cookie
+    val lastAttemptedPathOpt: Option[String] =
+      request.cookies.get("lastAttempted").
+      map { cookie => URLDecoder.decode(cookie.value, "UTF-8") }
+
+    Redirect(lastAttemptedPathOpt.getOrElse("/maze/level0"))
   }
 
   /**

@@ -91,8 +91,11 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.runSimulation = function() {
+    var nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+
     if (!dataStream) establishWebsocketConnection();
     dataStream.send($scope.code);
+    $cookies.put('lastAttempted', location.pathname, {expires: nextYear, path: '/'});
   };
 
 
