@@ -7,8 +7,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   function processRobotInstruction(instruction) {
     switch (instruction.c) {
       case 'maze':
-        $scope.finish.top = instruction.ft * pxPerMm - 4 + 'px';
-        $scope.finish.left = instruction.fl * pxPerMm - 4 + 'px';
+        $scope.finish.top = instruction.ft * pxPerMm - 25 + 'px';
+        $scope.finish.left = instruction.fl * pxPerMm - 25 + 'px';
         $scope.finish.display = 'block';
         $scope.walls = instruction.w.map(function(wall) {
           return {
@@ -62,7 +62,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
   function establishWebsocketConnection() {
     dataStream = $websocket(
-      (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/simulation'
+      (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname + '/simulation'
     );
     dataStream.onMessage(function(message) {
       $log.log(message.data);
@@ -100,6 +100,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   if (!$scope.code) {
     $http({
       method: 'GET',
+      // TODO one per level
       url: location.protocol + '//' + location.host + '/assets/java/TemplateRobot.java'
     }).
     then(

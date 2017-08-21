@@ -222,5 +222,5 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         t.printStackTrace()
         Future.failed(t)
     }
-  } pipeTo context.self // TODO look into why this doesn't really work
+  } pipeTo context.self
 }

@@ -38,6 +38,58 @@ object Maze {
       Wall(Point(3000, 0), Point(5000, 5000))
     )
   )
+  val byName: Map[String,Maze] = Map(
+    "level0" -> Maze(
+      startPoint = Point(500, 2500), startOrientationRad = math.Pi, finish = Point(2500, 2500),
+      walls = Set()
+    ),
+    "level1" -> Maze(
+      startPoint = Point(500, 500), startOrientationRad = math.Pi, finish = Point(500, 4500),
+      walls = Set(
+        Wall(Point(0, 1000), Point(1000, 4000)),
+        Wall(Point(3000, 0), Point(5000, 5000))
+      )
+    ),
+    "level2" -> Maze(
+      startPoint = Point(3500, 500), startOrientationRad = math.Pi / 2, finish = Point(500, 4500),
+      walls = Set(
+        Wall(Point(0, 0), Point(3000, 2000)),
+        Wall(Point(1000, 3000), Point(5000, 5000)),
+        Wall(Point(4000, 0), Point(5000, 3000))
+      )
+    ),
+    "level3" -> Maze(
+      startPoint = Point(3749, 417), startOrientationRad = math.Pi / 2, finish = Point(417, 4582),
+      walls = Set(
+        Wall(Point(0, 0), Point(1667, 3333)),
+        Wall(Point(833, 4167), Point(5000, 5000)),
+        Wall(Point(1667, 0), Point(3333, 1667)),
+        Wall(Point(2500, 2500), Point(5000, 4167)),
+        Wall(Point(4167, 833), Point(5000, 2500))
+      )
+    ),
+    "level4" -> Maze(
+      startPoint = Point(417, 417), startOrientationRad = math.Pi, finish = Point(4582, 4582),
+      walls = Set(
+        Wall(Point(0, 803), Point(863, 863)),
+        Wall(Point(803, 803), Point(863, 1697)),
+        Wall(Point(803, 2470), Point(863, 5000)),
+        Wall(Point(1637, 0), Point(1697, 4197)),
+        Wall(Point(1637, 803), Point(2530, 863)),
+        Wall(Point(1637, 1637), Point(3363, 1697)),
+        Wall(Point(1637, 2470), Point(2530, 2530)),
+        Wall(Point(1637, 4137), Point(2530, 4197)),
+        Wall(Point(2470, 3303), Point(2530, 4197)),
+        Wall(Point(3303, 803), Point(4197, 863)),
+        Wall(Point(3303, 803), Point(3363, 2530)),
+        Wall(Point(3303, 3303), Point(3363, 5000)),
+        Wall(Point(4137, 1637), Point(5000, 1697)),
+        Wall(Point(4137, 2470), Point(5000, 2530)),
+        Wall(Point(4137, 2470), Point(4197, 3363)),
+        Wall(Point(4137, 4137), Point(4197, 5000))
+      )
+    )
+  )
 }
 case class Maze(startPoint: Point, startOrientationRad: Double, finish: Point, walls: Set[Maze.Wall]) {
   import Maze._

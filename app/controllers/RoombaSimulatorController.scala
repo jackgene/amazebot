@@ -18,13 +18,21 @@ object RoombaSimulatorController extends Controller {
    * The home page.
    */
   def index() = Action { implicit request: Request[AnyContent] =>
-    Ok(views.html.index())
+    Redirect("/maze/level0") // TODO Read last attempted from cookie
+  }
+
+  /**
+   * A maze.
+   */
+  def maze(name: String) = Action { implicit request: Request[AnyContent] =>
+    if (!Maze.byName.contains(name)) NotFound
+    else Ok(views.html.index())
   }
 
   /**
     * Creates a simulation session.
     */
-  def simulation() = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
-    SimulationSessionActor.props(webSocketOut, Maze.theMaze)
+  def simulation(name: String) = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
+    SimulationSessionActor.props(webSocketOut, Maze.byName(name))
   }
 }

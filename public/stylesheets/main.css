@@ -9,11 +9,8 @@ body {
 
 .wall {
     position: absolute;
-    background-color: #bbb;
-    border: solid #eee 2px;
-    border-right-color: #999;
-    border-bottom-color: #888;
-    border-left-color: #ddd;
+    background-color: black;
+    border: solid black 2px;
 }
 
 #input  {
@@ -46,10 +43,15 @@ body {
 
 #finish {
     position: absolute;
-    background-color: #0b0;
+    color: #4a4;
+    background-color: #afa;
+    padding: 4px;
     border-radius: 50%;
-    width: 8px;
-    height: 8px;
+    width: 42px;
+    height: 42px;
+    font-family: sans-serif;
+    font-size: 0.7em;
+    text-align: center;
 }
 
 #console {
