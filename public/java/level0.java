@@ -1,7 +1,7 @@
 // A previous programmer had made this Roomba too clever
 // and now, all it does is go round and round and round
-// the goal.
-// Can you help the robot find the goal?
+// the green circle.
+// Can you help the robot get to the green circle?
 
 package org.jointheleague.ecolban.cleverrobot;
 
