@@ -27,12 +27,12 @@ object ViewUpdateInstructions {
     (JsPath \ "c").write[String] and
     (JsPath \ "ft").write[Double] and
     (JsPath \ "fl").write[Double] and
-    (JsPath \ "w").write[Set[Maze.Wall]]
+    (JsPath \ "w").write[List[Set[Maze.Wall]]]
   )(
     {
-      case DrawMaze(finish: Point, walls: Set[Maze.Wall]) =>
-        ("maze", finish.topMm, finish.leftMm, walls)
-    }: DrawMaze => (String,Double,Double,Set[Maze.Wall])
+      case DrawMaze(finish: Point, wallsHistory: List[Set[Maze.Wall]]) =>
+        ("maze", finish.topMm, finish.leftMm, wallsHistory)
+    }: DrawMaze => (String,Double,Double,List[Set[Maze.Wall]])
   )
 
   implicit val initializeRobotWrites: Writes[InitializeRobot] = (

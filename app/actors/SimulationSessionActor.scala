@@ -4,7 +4,8 @@ import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
 import java.lang.reflect.Method
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import models.{Maze, Point, RobotPosition}
+import models.Maze.Wall
+import models._
 import org.codehaus.commons.compiler.{CompileException, CompilerFactoryFactory}
 import play.api.libs.json.Json
 
@@ -16,7 +17,7 @@ import play.api.libs.json.Json
   */
 object SimulationSessionActor {
   // Outgoing messages
-  case class DrawMaze(finish: Point, walls: Set[Maze.Wall])
+  case class DrawMaze(finish: Point, wallsHistory: List[Set[Maze.Wall]])
   case class InitializeRobot(position: RobotPosition)
   case class PrintToConsole(messageType: ConsoleMessageType, message: String)
 
@@ -111,7 +112,13 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
   override def receive: Receive = receive(None, 0)
 
   webSocketOut ! Json.toJson(
-    DrawMaze(maze.finish, maze.walls)
+    DrawMaze(
+      maze.finish,
+      maze match {
+        case UserDefinedMaze(_, _, _, walls: Set[Wall]) => walls :: Nil
+        case GeneratedMaze(_, _, _, wallsHistory: List[Set[Wall]]) => wallsHistory
+      }
+    )
   )
   webSocketOut ! Json.toJson(
     InitializeRobot(
