@@ -41,4 +41,16 @@ object RoombaSimulatorController extends Controller {
   def simulation(name: String) = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
     SimulationSessionActor.props(webSocketOut, Maze.byName(name))
   }
+
+  /**
+    * Java code template.
+    */
+  def codeTemplate(name: String) = Action { implicit request: Request[AnyContent] =>
+    Ok.sendResource(
+      s"public/java/${name}.java" match {
+        case templatePath if getClass.getClassLoader().getResource(templatePath) != null => templatePath
+        case _ => "public/java/_default.java"
+      }
+    )
+  }
 }

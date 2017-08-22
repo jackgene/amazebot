@@ -1,3 +1,8 @@
+// A previous programmer had made this Roomba too clever
+// and now, all it does is go round and round and round
+// the goal.
+// Can you help the robot find the goal?
+
 package org.jointheleague.ecolban.cleverrobot;
 
 import java.io.IOException;
@@ -19,9 +24,6 @@ public class CleverRobot extends IRobotAdapter {
 		IRobotInterface base = new SimpleIRobot();
 		CleverRobot rob = new CleverRobot(base);
 		rob.setup();
-		while (rob.loop()) {
-		}
-		rob.shutDown();
 	}
 
 	private void setup() throws Exception {
@@ -29,18 +31,6 @@ public class CleverRobot extends IRobotAdapter {
 		Thread.sleep(1975);
 		driveDirect(-100, 100);
 		Thread.sleep(1820);
-	}
-
-	private boolean loop() throws Exception {
 		drive(500, -1000);
-		Thread.sleep(10000);
-
-		return true;
-	}
-
-	private void shutDown() throws IOException {
-		reset();
-		stop();
-		closeConnection();
 	}
 }

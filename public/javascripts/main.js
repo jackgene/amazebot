@@ -93,11 +93,12 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.runSimulation = function() {
-    var nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+    var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
 
     if (!dataStream) establishWebsocketConnection();
     dataStream.send($scope.code);
-    $cookies.put('lastAttempted', location.pathname, {expires: nextYear, path: '/'});
+    $cookies.put('lastAttempted', location.pathname, {expires: cookieExpires, path: '/'});
+    $cookies.put('code', $scope.code, {expires: cookieExpires, path: location.pathname});
   };
 
 
@@ -105,8 +106,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   if (!$scope.code) {
     $http({
       method: 'GET',
-      // TODO one per level
-      url: location.protocol + '//' + location.host + '/assets/java/TemplateRobot.java'
+      url: location.protocol + '//' + location.host + location.pathname + '/template.java'
     }).
     then(
       function successCallback(response) {

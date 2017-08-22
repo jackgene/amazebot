@@ -32,7 +32,7 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
   import models.ViewUpdateInstructions._
 
   private val PackageNameExtractor =
-    """(?s)\s*package\s+((?:[A-Za-z][A-Za-z0-9]+)(?:\.[A-Za-z][A-Za-z0-9]+)*).*""".r
+    """(?s).*package\s+((?:[A-Za-z][A-Za-z0-9]+)(?:\.[A-Za-z][A-Za-z0-9]+)*).*""".r
   private val ClassNameExtractor =
     """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
 
