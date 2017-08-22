@@ -5,17 +5,9 @@
 
 package org.jointheleague.ecolban.cleverrobot;
 
-import java.io.IOException;
-import java.util.Random;
-
-import org.jointheleague.ecolban.rpirobot.IRobotAdapter;
-import org.jointheleague.ecolban.rpirobot.IRobotInterface;
-import org.jointheleague.ecolban.rpirobot.SimpleIRobot;
+import org.jointheleague.ecolban.rpirobot.*;
 
 public class CleverRobot extends IRobotAdapter {
-	private boolean tailLight;
-	private int loopsRemaining = 3;
-
 	public CleverRobot(IRobotInterface iRobot) {
 		super(iRobot);
 	}
