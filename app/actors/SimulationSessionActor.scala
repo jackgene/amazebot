@@ -1,10 +1,11 @@
 package actors
 
+import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
 import java.lang.reflect.Method
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import models.{Maze, Point, RobotPosition}
-import org.codehaus.commons.compiler.CompilerFactoryFactory
+import org.codehaus.commons.compiler.{CompileException, CompilerFactoryFactory}
 import play.api.libs.json.Json
 
 /**
@@ -26,6 +27,24 @@ object SimulationSessionActor {
   def props(webSocketOut: ActorRef, maze: Maze): Props = {
     Props(classOf[SimulationSessionActor], webSocketOut, maze)
   }
+
+  private[actors] case class MessageSendingOutputStream(webSocketOut: ActorRef, msg: String => PrintToConsole)
+      extends OutputStream {
+    private val buf = new ByteArrayOutputStream()
+
+    override def flush(): Unit = {
+      import models.ViewUpdateInstructions._
+
+      webSocketOut ! Json.toJson(msg(buf.toString))
+      buf.reset()
+    }
+
+    override def write(b: Int): Unit = buf.write(b)
+
+    override def write(b: Array[Byte]): Unit = buf.write(b)
+
+    override def write(b: Array[Byte], off: Int, len: Int): Unit = buf.write(b, off, len)
+  }
 }
 class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor with ActorLogging {
   import SimulationSessionActor._
@@ -45,36 +64,48 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
       val PackageNameExtractor(packageName: String) = javaSource
       val ClassNameExtractor(className: String) = javaSource
       val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
-      compiler.cook(javaSource)
-      // TODO handle error (print to console)
+      try {
+        compiler.cook(javaSource)
 
-      // Re-initialize robot position
-      webSocketOut ! Json.toJson(
-        InitializeRobot(
-          RobotPosition(
-            topMm = Maze.theMaze.startPoint.topMm,
-            leftMm = Maze.theMaze.startPoint.leftMm,
-            orientationRad = Maze.theMaze.startOrientationRad
+        // Re-initialize robot position
+        webSocketOut ! Json.toJson(
+          InitializeRobot(
+            RobotPosition(
+              topMm = Maze.theMaze.startPoint.topMm,
+              leftMm = Maze.theMaze.startPoint.leftMm,
+              orientationRad = Maze.theMaze.startOrientationRad
+            )
           )
         )
-      )
 
-      // Run simulation
-      val classLoader = compiler.getClassLoader
-      val controllerClass = classLoader.loadClass(s"${packageName}.${className}")
-      val main: Method = controllerClass.getMethod("main", classOf[Array[String]])
-      val nextRun = run + 1
-      context.become(
-        receive(
-          Some(
-            context.actorOf(
-              SimulationRunActor.props(webSocketOut, maze, main),
-              s"run-${nextRun}"
-            )
-          ),
-          nextRun
+        // Run simulation
+        val classLoader = compiler.getClassLoader
+        val controllerClass = classLoader.loadClass(s"${packageName}.${className}")
+        val main: Method = controllerClass.getMethod("main", classOf[Array[String]])
+        val nextRun = run + 1
+        context.become(
+          receive(
+            Some(
+              context.actorOf(
+                SimulationRunActor.props(webSocketOut, maze, main),
+                s"run-${nextRun}"
+              )
+            ),
+            nextRun
+          )
         )
-      )
+      } catch {
+        case e: CompileException =>
+          e.printStackTrace(
+            new PrintStream(
+              SimulationSessionActor.MessageSendingOutputStream(
+                webSocketOut,
+                SimulationSessionActor.PrintToConsole(SimulationSessionActor.StdErr, _)
+              ),
+              true
+            )
+          )
+      }
   }
 
   override def receive: Receive = receive(None, 0)

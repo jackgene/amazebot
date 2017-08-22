@@ -1,10 +1,9 @@
 package actors
 
-import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
+import java.io.PrintStream
 import java.lang.reflect.Method
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import actors.SimulationSessionActor.PrintToConsole
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
 import io.PerThreadPrintStream
@@ -31,23 +30,6 @@ object SimulationRunActor {
   }
 
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
-
-  private case class MessageSendingOutputStream(webSocketOut: ActorRef, msg: String => PrintToConsole) extends OutputStream {
-    private val buf = new ByteArrayOutputStream()
-
-    override def flush(): Unit = {
-      import models.ViewUpdateInstructions._
-
-      webSocketOut ! Json.toJson(msg(buf.toString))
-      buf.reset()
-    }
-
-    override def write(b: Int): Unit = buf.write(b)
-
-    override def write(b: Array[Byte]): Unit = buf.write(b)
-
-    override def write(b: Array[Byte], off: Int, len: Int): Unit = buf.write(b, off, len)
-  }
 }
 class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) extends Actor with ActorLogging {
   import SimulationRunActor._
@@ -198,7 +180,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       SimpleIRobot.simulationRunHolder.set(self)
       PerThreadPrintStream.redirectStdOut(
         new PrintStream(
-          MessageSendingOutputStream(
+          SimulationSessionActor.MessageSendingOutputStream(
             webSocketOut,
             SimulationSessionActor.PrintToConsole(SimulationSessionActor.StdOut, _)
           ),
@@ -207,7 +189,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
       PerThreadPrintStream.redirectStdErr(
         new PrintStream(
-          MessageSendingOutputStream(
+          SimulationSessionActor.MessageSendingOutputStream(
             webSocketOut,
             SimulationSessionActor.PrintToConsole(SimulationSessionActor.StdErr, _)
           ),
