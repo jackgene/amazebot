@@ -6,7 +6,8 @@
 # An example controller showing a sample home page
 GET     /                           controllers.RoombaSimulatorController.index
 GET     /maze/:name                 controllers.RoombaSimulatorController.maze(name: String)
-GET     /maze/:name/simulation      controllers.RoombaSimulatorController.simulation(name: String)
+GET     /maze/random/simulation     controllers.RoombaSimulatorController.randomMazeSimulation
+GET     /maze/:name/simulation      controllers.RoombaSimulatorController.mazeSimulation(name: String)
 GET     /maze/:name/template.java   controllers.RoombaSimulatorController.codeTemplate(name: String)
 
 # Map static resources from the /public folder to the /assets URL path

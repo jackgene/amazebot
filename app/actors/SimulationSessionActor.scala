@@ -71,9 +71,9 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
         webSocketOut ! Json.toJson(
           InitializeRobot(
             RobotPosition(
-              topMm = Maze.theMaze.startPoint.topMm,
-              leftMm = Maze.theMaze.startPoint.leftMm,
-              orientationRad = Maze.theMaze.startOrientationRad
+              topMm = maze.startPoint.topMm,
+              leftMm = maze.startPoint.leftMm,
+              orientationRad = maze.startOrientationRad
             )
           )
         )
