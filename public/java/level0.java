@@ -8,21 +8,16 @@ package org.jointheleague.ecolban.cleverrobot;
 import org.jointheleague.ecolban.rpirobot.*;
 
 public class CleverRobot extends IRobotAdapter {
-	public CleverRobot(IRobotInterface iRobot) {
+	public CleverRobot(IRobotInterface iRobot) throws Exception {
 		super(iRobot);
-	}
-
-	public static void main(String[] args) throws Exception {
-		IRobotInterface base = new SimpleIRobot();
-		CleverRobot rob = new CleverRobot(base);
-		rob.setup();
-	}
-
-	private void setup() throws Exception {
 		driveDirect(500, 500);
 		Thread.sleep(1975);
 		driveDirect(-100, 100);
 		Thread.sleep(1820);
 		drive(500, -1000);
+	}
+
+	public static void main(String[] args) throws Exception {
+		CleverRobot rob = new CleverRobot(new SimpleIRobot());
 	}
 }
