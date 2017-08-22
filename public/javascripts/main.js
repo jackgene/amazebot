@@ -11,15 +11,17 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $scope.finish.left = instruction.fl * pxPerMm - 25 + 'px';
         $scope.finish.display = 'block';
         (function initializeWalls(wallsHistory) {
-          $scope.walls = wallsHistory[0].map(function(wall) {
-            return {
-              top: wall.t * pxPerMm + 'px',
-              left: wall.l * pxPerMm + 'px',
-              height: wall.h * pxPerMm - 4 + 'px',
-              width: wall.w * pxPerMm - 4 + 'px'
-            };
-          });
-          $timeout(function() { initializeWalls(wallsHistory.slice(1)) }, 50);
+          if (wallsHistory.length > 0) {
+            $scope.walls = wallsHistory[0].map(function(wall) {
+              return {
+                top: wall.t * pxPerMm + 'px',
+                left: wall.l * pxPerMm + 'px',
+                height: wall.h * pxPerMm - 4 + 'px',
+                width: wall.w * pxPerMm - 4 + 'px'
+              };
+            });
+            $timeout(function() { initializeWalls(wallsHistory.slice(1)) }, 50);
+          }
         })(instruction.w.reverse());
         break;
 
