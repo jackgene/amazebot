@@ -93,7 +93,7 @@ body {
     margin: 0;
     word-wrap: break-word;
     white-space: pre-wrap;
-    word-break: normal;
+    word-break: break-all;
 }
 .stderr {
     color: #d00;
