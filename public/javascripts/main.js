@@ -24,10 +24,16 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $scope.robot.display = 'none';
         $scope.robot.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
         $scope.robot.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
-        $scope.robot.transform = 'rotate(' + instruction.o + 'rad)';
         $timeout(
-          function() { $scope.robot.display = 'block' },
-          100
+          function() {
+            $scope.robot.display = 'block';
+            $scope.robot.transform = 'rotate(' + (instruction.o - Math.PI) + 'rad)';
+            $timeout(
+              function() { $scope.robot.transform = 'rotate(' + instruction.o + 'rad)' },
+              0
+            )
+          },
+          0
         );
         break;
 
