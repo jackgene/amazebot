@@ -99,31 +99,25 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   function establishWebsocketConnection() {
     var keepAliveTimeout;
 
-    function initOrResetKeepAlive() {
-      keepAliveTimeout = $timeout(
-        function() {
-          dataStream.send("!");
-          initOrResetKeepAlive();
-        },
-        54500 // 55 seconds is Heroku's timeout
-      );
-    }
-
     dataStream = $websocket(
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname + '/simulation'
     );
     $log.debug(new Date + ": websocket connection opened");
 
     if (location.pathname.indexOf('random') > -1) {
-      dataStream.onOpen(initOrResetKeepAlive);
+      dataStream.onOpen(function keepAlive() {
+        keepAliveTimeout = $timeout(
+          function() {
+            dataStream.send("!");
+            keepAlive();
+          },
+          45000 // 55 seconds is Heroku's timeout
+        );
+      });
     }
     dataStream.onMessage(function(message) {
       $log.debug(message.data);
       processRobotInstruction(JSON.parse(message.data));
-      if (keepAliveTimeout) {
-        $timeout.cancel(keepAliveTimeout);
-        initOrResetKeepAlive();
-      }
     });
     dataStream.onClose(function() {
       $log.warn(new Date + ": websocket connection closed");
