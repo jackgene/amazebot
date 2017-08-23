@@ -63,7 +63,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
               0
             )
           },
-          0
+          10
         );
         break;
 
@@ -108,11 +108,11 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       dataStream.onOpen(function keepAlive() {
         keepAliveTimeout = $timeout(
           function() {
-            $log.info(new Date() + ": sending keep alive");
+            $log.debug(new Date() + ": sending keep alive");
             dataStream.send("!");
             keepAlive();
           },
-          45000 // 55 seconds is Heroku's timeout
+          30000 // 55 seconds is Heroku's timeout
         );
       });
     }
