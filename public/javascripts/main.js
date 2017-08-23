@@ -105,14 +105,14 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
           dataStream.send("!");
           initOrResetKeepAlive();
         },
-        120000 // Every two minutes
+        54500 // 55 seconds is Heroku's timeout
       );
     }
 
     dataStream = $websocket(
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname + '/simulation'
     );
-    $log.info(new Date + ": websocket connection opened");
+    $log.debug(new Date + ": websocket connection opened");
 
     if (location.pathname.indexOf('random') > -1) {
       dataStream.onOpen(initOrResetKeepAlive);
