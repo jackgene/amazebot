@@ -13,6 +13,8 @@ object ViewUpdateInstructions {
   import actors.SimulationSessionActor._
   import actors.SimulationRunActor._
 
+  private def roundOrient(orientation: Double): Double = math.round(orientation * 100) / 100.0
+
   implicit val wallWrites: Writes[Maze.Wall] = (
     (JsPath \ "t").write[Double] and
     (JsPath \ "l").write[Double] and
@@ -73,7 +75,7 @@ object ViewUpdateInstructions {
   )(
     {
       case MoveRobot(position: RobotPosition) =>
-        ("mv", position.topMm, position.leftMm, position.orientationRad)
+        ("mv", math.round(position.topMm), math.round(position.leftMm), roundOrient(position.orientationRad))
     }: MoveRobot => (String,Double,Double,Double)
   )
 

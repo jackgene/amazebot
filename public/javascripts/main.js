@@ -92,7 +92,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       dataStream.onOpen(initOrResetKeepAlive);
     }
     dataStream.onMessage(function(message) {
-      $log.debug(message);
+      $log.debug(message.data);
       processRobotInstruction(JSON.parse(message.data));
       if (keepAliveTimeout) {
         $timeout.cancel(keepAliveTimeout);
