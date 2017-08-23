@@ -72,14 +72,38 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   }
 
   function establishWebsocketConnection() {
+    var keepAliveTimeout;
+
+    function initOrResetKeepAlive() {
+      keepAliveTimeout = $timeout(
+        function() {
+          dataStream.send("!");
+          initOrResetKeepAlive();
+        },
+        120000 // Every two minutes
+      );
+    }
+
     dataStream = $websocket(
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname + '/simulation'
     );
+
+    if (location.pathname.indexOf('random') > -1) {
+      dataStream.onOpen(initOrResetKeepAlive);
+    }
     dataStream.onMessage(function(message) {
-      $log.log(message.data);
+      $log.debug(message);
       processRobotInstruction(JSON.parse(message.data));
+      if (keepAliveTimeout) {
+        $timeout.cancel(keepAliveTimeout);
+        initOrResetKeepAlive();
+      }
     });
     dataStream.onClose(function() {
+      $log.warn("websocket connection closed");
+      if (keepAliveTimeout) {
+        $timeout.cancel(keepAliveTimeout);
+      }
       dataStream = null;
     });
   }

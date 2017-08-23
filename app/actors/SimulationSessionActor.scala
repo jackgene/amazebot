@@ -57,15 +57,17 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
     """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
 
   private def receive(currentRunOpt: Option[ActorRef], run: Int): Receive = {
+    case "!" => // Keep alive ping - no-op
+
     case javaSource: String =>
       // Stop previous run
       currentRunOpt.foreach(context.stop)
 
-      // Compile simulation source
-      val PackageNameExtractor(packageName: String) = javaSource
-      val ClassNameExtractor(className: String) = javaSource
-      val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
       try {
+        // Compile simulation source
+        val PackageNameExtractor(packageName: String) = javaSource
+        val ClassNameExtractor(className: String) = javaSource
+        val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
         compiler.cook(javaSource)
 
         // Re-initialize robot position
