@@ -10,12 +10,11 @@
         <li><a href="/maze/random">Random Maze</a></li>
     </ul>
     <div id="input">
-        <form ng-submit="runSimulation()">
-            <label>
-                <textarea ui-codemirror="editorOptions" ng-model="code"></textarea>
-            </label><br/>
-            <input type="submit" value="Run" />
-        </form>
+        <label>
+            <textarea ui-codemirror="editorOptions" ng-model="code"></textarea>
+        </label><br/>
+        <button ng-click="runSimulation()">Run</button>
+        <button ng-click="resetCode()">Reset Code</button>
     </div>
     <div id="output">
         <div id="world">

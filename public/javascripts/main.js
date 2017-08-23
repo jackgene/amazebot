@@ -4,6 +4,31 @@ var roombaSimApp = angular.module(
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
   var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream;
 
+  function saveSessionState() {
+    var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+
+    $cookies.put('lastAttempted', location.pathname, {expires: cookieExpires, path: '/'});
+    $cookies.put('code', $scope.code, {expires: cookieExpires, path: location.pathname});
+  }
+
+  function loadCodeFromTemplate() {
+    $http({
+      method: 'GET',
+      url: location.protocol + '//' + location.host + location.pathname + '/template.java'
+    }).
+    then(
+      function successCallback(response) {
+        $scope.code = response.data;
+        saveSessionState();
+      },
+      function errorCallback(response) {
+        $log.log('Error obtaining template source:');
+        $log.log('status: ' + response.status);
+        $log.log('data: ' + response.data);
+      }
+    )
+  }
+
   function processRobotInstruction(instruction) {
     switch (instruction.c) {
       case 'maze':
@@ -128,32 +153,18 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.runSimulation = function() {
-    var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
-
     if (!dataStream) establishWebsocketConnection();
     dataStream.send($scope.code);
-    $cookies.put('lastAttempted', location.pathname, {expires: cookieExpires, path: '/'});
-    $cookies.put('code', $scope.code, {expires: cookieExpires, path: location.pathname});
+    saveSessionState();
   };
 
+  $scope.resetCode = function() {
+    $cookies.remove('code');
+    loadCodeFromTemplate();
+  };
 
   $scope.code = $cookies.get('code');
-  if (!$scope.code) {
-    $http({
-      method: 'GET',
-      url: location.protocol + '//' + location.host + location.pathname + '/template.java'
-    }).
-    then(
-      function successCallback(response) {
-        $scope.code = response.data;
-      },
-      function errorCallback(response) {
-        $log.log('Error obtaining template source:');
-        $log.log('status: ' + response.status);
-        $log.log('data: ' + response.data);
-      }
-    )
-  }
+  if (!$scope.code) loadCodeFromTemplate();
 
   establishWebsocketConnection();
 });
