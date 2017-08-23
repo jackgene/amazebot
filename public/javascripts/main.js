@@ -108,6 +108,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       dataStream.onOpen(function keepAlive() {
         keepAliveTimeout = $timeout(
           function() {
+            $log.info(new Date() + ": sending keep alive");
             dataStream.send("!");
             keepAlive();
           },
