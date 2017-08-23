@@ -112,6 +112,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     dataStream = $websocket(
       (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + location.pathname + '/simulation'
     );
+    $log.info(new Date + ": websocket connection opened");
 
     if (location.pathname.indexOf('random') > -1) {
       dataStream.onOpen(initOrResetKeepAlive);
@@ -125,7 +126,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
       }
     });
     dataStream.onClose(function() {
-      $log.warn("websocket connection closed");
+      $log.warn(new Date + ": websocket connection closed");
       if (keepAliveTimeout) {
         $timeout.cancel(keepAliveTimeout);
       }
