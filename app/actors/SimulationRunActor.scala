@@ -29,6 +29,8 @@ object SimulationRunActor {
     Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, main)
   }
 
+  val simulationRunHolder = new ThreadLocal[ActorRef]
+
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
 }
 class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) extends Actor with ActorLogging {
@@ -54,7 +56,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     }
   )
 
-  val viewUpdateScheduler = context.system.scheduler.schedule(0.millis, 250.millis, self, UpdateView)
+  val viewUpdateScheduler = context.system.scheduler.schedule(0.millis, 200.millis, self, UpdateView)
 
   private def moveRobot(
       oldTimeMillis: Long, newTimeMillis: Long,
@@ -177,7 +179,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     implicit val ec = ExecutionContext.fromExecutorService(executorService)
 
     Future {
-      SimpleIRobot.simulationRunHolder.set(self)
+      simulationRunHolder.set(self)
       PerThreadPrintStream.redirectStdOut(
         new PrintStream(
           SimulationSessionActor.MessageSendingOutputStream(

@@ -5,9 +5,13 @@ import akka.actor.ActorRef
 
 import scala.math.{max, min}
 
+/**
+  * Simulated SimpleIRobot.
+  *
+  * @author Jack Leow
+  * @since August 2017
+  */
 object SimpleIRobot {
-  val simulationRunHolder = new ThreadLocal[ActorRef]
-
   val AfterCommandPauseTimeMillis = 20
 }
 class SimpleIRobot extends IRobotInterface {
@@ -18,7 +22,7 @@ class SimpleIRobot extends IRobotInterface {
   val MaxRadiusMm = 2000
   val MinRadiusMm = -2000
 
-  private val simulationRun: ActorRef = simulationRunHolder.get
+  private val simulationRun: ActorRef = SimulationRunActor.simulationRunHolder.get
 
   private def afterCommandPause(): Unit = Thread.sleep(AfterCommandPauseTimeMillis)
 
