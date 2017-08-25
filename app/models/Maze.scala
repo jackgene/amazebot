@@ -261,38 +261,40 @@ sealed abstract class Maze {
   def obstructionsInContact(robotPosition: RobotPosition): Set[Obstruction] = {
     import RobotPosition.RobotSizeRadiusMm
 
-    val robotTopMm: Double = robotPosition.topMm - RobotSizeRadiusMm
-    val robotRightMm: Double = robotPosition.leftMm + RobotSizeRadiusMm
-    val robotLeftMm: Double = robotPosition.leftMm - RobotSizeRadiusMm
-    val robotBottomMm: Double = robotPosition.topMm + RobotSizeRadiusMm
+    val robotCenterTopMm: Double = robotPosition.topMm
+    val robotCenterLeftMm: Double = robotPosition.leftMm
+    val robotTopEdgeMm: Double = robotCenterTopMm - RobotSizeRadiusMm
+    val robotRightEdgeMm: Double = robotCenterLeftMm + RobotSizeRadiusMm
+    val robotBottomEdgeMm: Double = robotCenterTopMm + RobotSizeRadiusMm
+    val robotLeftEdgeMm: Double = robotCenterLeftMm - RobotSizeRadiusMm
     (
-      obstructionsByTopEdge.to(robotBottomMm).values.toSet.flatten
+      obstructionsByTopEdge.to(robotBottomEdgeMm).values.toSet.flatten
       intersect
-      obstructionsByRightEdge.from(robotLeftMm).values.toSet.flatten
+      obstructionsByRightEdge.from(robotLeftEdgeMm).values.toSet.flatten
       intersect
-      obstructionsByBottomEdge.from(robotTopMm).values.toSet.flatten
+      obstructionsByBottomEdge.from(robotTopEdgeMm).values.toSet.flatten
       intersect
-      obstructionsByLeftEdge.to(robotRightMm).values.toSet.flatten
+      obstructionsByLeftEdge.to(robotRightEdgeMm).values.toSet.flatten
     ).
     filter {
-      case Wall(Point(wallTopMm, wallLeftMm), _) if robotTopMm < wallTopMm && robotLeftMm < wallLeftMm =>
-        val yDis = robotPosition.topMm - wallTopMm
-        val xDis = robotPosition.leftMm - wallLeftMm
+      case Wall(Point(wallTopMm, wallLeftMm), _) if robotCenterTopMm < wallTopMm && robotCenterLeftMm < wallLeftMm =>
+        val yDis = robotCenterTopMm - wallTopMm
+        val xDis = robotCenterLeftMm - wallLeftMm
         yDis * yDis + xDis * xDis < RobotPosition.RobotSizeRadiusMmSq
 
-      case Wall(Point(wallTopMm, _), Point(_, wallRightMm)) if robotTopMm < wallTopMm && robotRightMm > wallRightMm =>
-        val yDis = robotPosition.topMm - wallTopMm
-        val xDis = robotPosition.leftMm - wallRightMm
+      case Wall(Point(wallTopMm, _), Point(_, wallRightMm)) if robotCenterTopMm < wallTopMm && robotCenterLeftMm > wallRightMm =>
+        val yDis = robotCenterTopMm - wallTopMm
+        val xDis = robotCenterLeftMm - wallRightMm
         yDis * yDis + xDis * xDis < RobotPosition.RobotSizeRadiusMmSq
 
-      case Wall(_, Point(wallBottomMm, wallRightMm)) if robotBottomMm > wallBottomMm && robotRightMm > wallRightMm =>
-        val yDis = robotPosition.topMm - wallBottomMm
-        val xDis = robotPosition.leftMm - wallRightMm
+      case Wall(_, Point(wallBottomMm, wallRightMm)) if robotCenterTopMm > wallBottomMm && robotCenterLeftMm > wallRightMm =>
+        val yDis = robotCenterTopMm - wallBottomMm
+        val xDis = robotCenterLeftMm - wallRightMm
         yDis * yDis + xDis * xDis < RobotPosition.RobotSizeRadiusMmSq
 
-      case Wall(Point(_, wallLeftMm), Point(wallBottomMm, _)) if robotBottomMm > wallBottomMm && robotLeftMm < wallLeftMm =>
-        val yDis = robotPosition.topMm - wallBottomMm
-        val xDis = robotPosition.leftMm - wallLeftMm
+      case Wall(Point(_, wallLeftMm), Point(wallBottomMm, _)) if robotCenterTopMm > wallBottomMm && robotCenterLeftMm < wallLeftMm =>
+        val yDis = robotCenterTopMm - wallBottomMm
+        val xDis = robotCenterLeftMm - wallLeftMm
         yDis * yDis + xDis * xDis < RobotPosition.RobotSizeRadiusMmSq
 
       case _ => true
