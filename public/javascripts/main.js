@@ -75,8 +75,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
       case 'msg':
         $timeout(
-          function() {$window.alert(instruction.m)},
-          300
+          function() { $window.alert(instruction.m) },
+          500
         );
         break;
 
