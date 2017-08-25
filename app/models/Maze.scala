@@ -16,15 +16,46 @@ object Maze {
   val HeightMm: Int = 5000
   val WidthMm: Int = 5000
 
-  sealed abstract class Obstruction
-  case object TopBoundary extends Obstruction
-  case object RightBoundary extends Obstruction
-  case object BottomBoundary extends Obstruction
-  case object LeftBoundary extends Obstruction
+  sealed abstract class Obstruction(
+    // Distance of edges from absolute top/left in mm
+    val top: Double,
+    val right: Double,
+    val bottom: Double,
+    val left: Double
+  )
+  case object TopBoundary extends Obstruction(
+    top = Double.NegativeInfinity,
+    right = Double.PositiveInfinity,
+    bottom = 0.0,
+    left = Double.NegativeInfinity
+  )
+  case object RightBoundary extends Obstruction(
+    top = Double.NegativeInfinity,
+    right = Double.PositiveInfinity,
+    bottom = Double.PositiveInfinity,
+    left = 5000.0
+  )
+  case object BottomBoundary extends Obstruction(
+    top = 5000.0,
+    right = Double.PositiveInfinity,
+    bottom = Double.PositiveInfinity,
+    left = Double.NegativeInfinity
+  )
+  case object LeftBoundary extends Obstruction(
+    top = Double.NegativeInfinity,
+    right = 0.0,
+    bottom = Double.PositiveInfinity,
+    left = Double.NegativeInfinity
+  )
   object Wall {
     val MinThicknessMm = 10
   }
-  case class Wall(topLeft: Point, bottomRight: Point) extends Obstruction {
+  case class Wall(topLeft: Point, bottomRight: Point) extends Obstruction (
+    top = topLeft.topMm,
+    right = bottomRight.leftMm,
+    bottom = bottomRight.topMm,
+    left = topLeft.leftMm
+  ) {
     import Wall._
     assert(height >= MinThicknessMm, s"wall height must be at least ${MinThicknessMm}mm")
     assert(width >= MinThicknessMm, s"wall width must be at least ${MinThicknessMm}mm")
@@ -32,6 +63,13 @@ object Maze {
     lazy val height: Int = bottomRight.topMm - topLeft.topMm
     lazy val width: Int = bottomRight.leftMm - topLeft.leftMm
   }
+  private case class RobotEdges(position: RobotPosition) extends Obstruction(
+    // Intentionally inverted to facilitate computation
+    top = position.topMm + RobotPosition.RobotSizeRadiusMm,
+    right = position.leftMm - RobotPosition.RobotSizeRadiusMm,
+    bottom = position.topMm - RobotPosition.RobotSizeRadiusMm,
+    left = position.leftMm + RobotPosition.RobotSizeRadiusMm
+  )
 
   val byName: Map[String,UserDefinedMaze] = Map(
     "level0" -> UserDefinedMaze(
@@ -233,48 +271,47 @@ sealed abstract class Maze {
   val finish: Point
   val walls: Set[Maze.Wall]
 
-  private lazy val obstructionsByTopEdge: SortedMap[Double,Set[Obstruction]] =
-    SortedMap[Double,Set[Obstruction]](
-      Double.NegativeInfinity -> Set(TopBoundary, RightBoundary, LeftBoundary),
-      5000.0 -> Set(BottomBoundary)
-    ) ++
-    walls.groupBy(_.topLeft.topMm.toDouble).asInstanceOf[Map[Double,Set[Obstruction]]]
-  private lazy val obstructionsByRightEdge: SortedMap[Double,Set[Obstruction]] =
-    SortedMap[Double,Set[Obstruction]](
-      Double.PositiveInfinity -> Set(TopBoundary, RightBoundary, BottomBoundary),
-      0.0 -> Set(LeftBoundary)
-    ) ++
-    walls.groupBy(_.bottomRight.leftMm.toDouble).asInstanceOf[Map[Double,Set[Obstruction]]]
-  private lazy val obstructionsByBottomEdge: SortedMap[Double,Set[Obstruction]] =
-    SortedMap[Double,Set[Obstruction]](
-      0.0 -> Set(TopBoundary),
-      Double.PositiveInfinity -> Set(RightBoundary, BottomBoundary, LeftBoundary)
-    ) ++
-    walls.groupBy(_.bottomRight.topMm.toDouble).asInstanceOf[Map[Double,Set[Obstruction]]]
-  private lazy val obstructionsByLeftEdge: SortedMap[Double,Set[Obstruction]] =
-    SortedMap[Double,Set[Obstruction]](
-      Double.NegativeInfinity -> Set(TopBoundary, BottomBoundary, LeftBoundary),
-      5000.0 -> Set(RightBoundary)
-    ) ++
-    walls.groupBy(_.topLeft.leftMm.toDouble).asInstanceOf[Map[Double,Set[Obstruction]]]
+  private lazy val obstructionsOrderedByTopEdge: SortedSet[Obstruction] =
+    SortedSet[Obstruction](TopBoundary, RightBoundary, BottomBoundary, LeftBoundary)(
+      Ordering.by { o: Obstruction =>
+        // We mainly care about top edge. The rest are for disambiguation
+        (o.top, (o.right, o.bottom, o.left))
+      }
+    ) ++ walls
+  private lazy val obstructionsOrderedByRightEdge: SortedSet[Obstruction] =
+    SortedSet[Obstruction](TopBoundary, RightBoundary, BottomBoundary, LeftBoundary)(
+      Ordering.by { o: Obstruction =>
+        // We mainly care about right edge. The rest are for disambiguation
+        (-o.right, (o.top, o.bottom, o.left))
+      }
+    ) ++ walls
+  private lazy val obstructionsOrderedByBottomEdge: SortedSet[Obstruction] =
+    SortedSet[Obstruction](TopBoundary, RightBoundary, BottomBoundary, LeftBoundary)(
+      Ordering.by { o: Obstruction =>
+        // We mainly care about bottom edge. The rest are for disambiguation
+        (-o.bottom, (o.top, o.right, o.left))
+      }
+    ) ++ walls
+  private lazy val obstructionsOrderedByLeftEdge: SortedSet[Obstruction] =
+    SortedSet[Obstruction](TopBoundary, RightBoundary, BottomBoundary, LeftBoundary)(
+      Ordering.by { o: Obstruction =>
+        // We mainly care about left edge. The rest are for disambiguation
+        (o.left, (o.top, o.right, o.bottom))
+      }
+    ) ++ walls
 
   def obstructionsInContact(robotPosition: RobotPosition): Set[Obstruction] = {
-    import RobotPosition.RobotSizeRadiusMm
-
     val robotCenterTopMm: Double = robotPosition.topMm
     val robotCenterLeftMm: Double = robotPosition.leftMm
-    val robotTopEdgeMm: Double = robotCenterTopMm - RobotSizeRadiusMm
-    val robotRightEdgeMm: Double = robotCenterLeftMm + RobotSizeRadiusMm
-    val robotBottomEdgeMm: Double = robotCenterTopMm + RobotSizeRadiusMm
-    val robotLeftEdgeMm: Double = robotCenterLeftMm - RobotSizeRadiusMm
+
     (
-      obstructionsByTopEdge.to(robotBottomEdgeMm).values.toSet.flatten
+      obstructionsOrderedByTopEdge.to(RobotEdges(robotPosition))
       intersect
-      obstructionsByRightEdge.from(robotLeftEdgeMm).values.toSet.flatten
+      obstructionsOrderedByRightEdge.to(RobotEdges(robotPosition))
       intersect
-      obstructionsByBottomEdge.from(robotTopEdgeMm).values.toSet.flatten
+      obstructionsOrderedByBottomEdge.to(RobotEdges(robotPosition))
       intersect
-      obstructionsByLeftEdge.to(robotRightEdgeMm).values.toSet.flatten
+      obstructionsOrderedByLeftEdge.to(RobotEdges(robotPosition))
     ).
     filter {
       case Wall(Point(wallTopMm, wallLeftMm), _) if robotCenterTopMm < wallTopMm && robotCenterLeftMm < wallLeftMm =>
