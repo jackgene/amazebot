@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
 import io.PerThreadPrintStream
 import models.{Maze, RobotPosition, RobotState}
-import org.jointheleague.ecolban.rpirobot.{IRobotInterface, SimpleIRobot}
+import org.jointheleague.ecolban.rpirobot.IRobotInterface
 import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.duration._
@@ -20,10 +20,12 @@ object SimulationRunActor {
   case object UpdateView
   case object RobotProgramExited
   case class Drive(velocityMmS: Double, radiusMm: Option[Double])
+  case class Ping(robotRelativeDirectionRad: Double)
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
   case class ShowMessage(message: String)
+  case class Pong(distanceMm: Double)
 
   def props(webSocketOut: ActorRef, maze: Maze, main: Method): Props = {
     Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, main)
@@ -115,6 +117,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
         )
       )
+
+    case Ping(robotRelativeDirectionRad: Double) =>
+      sender ! Pong(10000.0)
 
     case UpdateView =>
       val newTimeMillis = System.currentTimeMillis()
