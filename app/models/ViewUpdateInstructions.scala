@@ -16,10 +16,10 @@ object ViewUpdateInstructions {
   private def roundOrient(orientation: Double): Double = math.round(orientation * 100) / 100.0
 
   implicit val wallWrites: Writes[Maze.Wall] = (
-    (JsPath \ "t").write[Double] and
-    (JsPath \ "l").write[Double] and
-    (JsPath \ "h").write[Double] and
-    (JsPath \ "w").write[Double]
+    (JsPath \ "t").write[Int] and
+    (JsPath \ "l").write[Int] and
+    (JsPath \ "h").write[Int] and
+    (JsPath \ "w").write[Int]
   ) {
     wall: Maze.Wall =>
       (wall.topLeft.topMm, wall.topLeft.leftMm, wall.height, wall.width)
@@ -27,14 +27,14 @@ object ViewUpdateInstructions {
 
   implicit val drawMazeWrites: Writes[DrawMaze] = (
     (JsPath \ "c").write[String] and
-    (JsPath \ "ft").write[Double] and
-    (JsPath \ "fl").write[Double] and
+    (JsPath \ "ft").write[Int] and
+    (JsPath \ "fl").write[Int] and
     (JsPath \ "w").write[List[Set[Maze.Wall]]]
   )(
     {
       case DrawMaze(finish: Point, wallsHistory: List[Set[Maze.Wall]]) =>
         ("maze", finish.topMm, finish.leftMm, wallsHistory)
-    }: DrawMaze => (String,Double,Double,List[Set[Maze.Wall]])
+    }: DrawMaze => (String,Int,Int,List[Set[Maze.Wall]])
   )
 
   implicit val initializeRobotWrites: Writes[InitializeRobot] = (
