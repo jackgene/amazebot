@@ -3,6 +3,8 @@ package org.jointheleague.ecolban.cleverrobot;
 import org.jointheleague.ecolban.rpirobot.*;
 
 public class CleverRobot extends IRobotAdapter {
+	Sonar sonar = new Sonar();
+
 	public CleverRobot(IRobotInterface iRobot) {
 		super(iRobot);
 	}
