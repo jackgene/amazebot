@@ -63,12 +63,19 @@ object Maze {
     lazy val height: Int = bottomRight.topMm - topLeft.topMm
     lazy val width: Int = bottomRight.leftMm - topLeft.leftMm
   }
+  // Virtual obstructions to faciliate maths
   private case class RobotEdges(position: RobotPosition) extends Obstruction(
     // Intentionally inverted to facilitate computation
     top = position.topMm + RobotPosition.RobotSizeRadiusMm,
     right = position.leftMm - RobotPosition.RobotSizeRadiusMm,
     bottom = position.topMm - RobotPosition.RobotSizeRadiusMm,
     left = position.leftMm + RobotPosition.RobotSizeRadiusMm
+  )
+  private case class RobotCenter(position: RobotPosition) extends Obstruction(
+    top = position.topMm,
+    right = position.leftMm,
+    bottom = position.topMm,
+    left = position.leftMm
   )
 
   val byName: Map[String,UserDefinedMaze] = Map(
@@ -338,11 +345,83 @@ sealed abstract class Maze {
     }
   }
 
+  /**
+    * Determines if the robot has reached the finish point.
+    *
+    * @param robotPosition the position of the robot.
+    * @return `true` if the robot has reached the finish point; `false` otherwise
+    */
   def hasFinished(robotPosition: RobotPosition): Boolean = {
     val yDis = robotPosition.topMm - finish.topMm
     val xDis = robotPosition.leftMm - finish.leftMm
 
     yDis * yDis + xDis * xDis < RobotPosition.RobotSizeRadiusMmSq
+  }
+
+  private def rightAngleDistanceToClosestObstruction(
+      robotPosition: RobotPosition,
+      obsAhead: SortedSet[Obstruction], obsToLeft: SortedSet[Obstruction], obsToRight: SortedSet[Obstruction],
+      robotSonarEdge: RobotPosition => Double, obsClosestEdge: Obstruction => Double):
+      Double = {
+    val closestObstruction: Obstruction =
+      (
+        obsAhead.from(RobotEdges(robotPosition))
+        intersect
+        obsToLeft.to(RobotCenter(robotPosition))
+        intersect
+        obsToRight.to(RobotCenter(robotPosition))
+      ).
+      head
+
+    robotSonarEdge(robotPosition) - obsClosestEdge(closestObstruction)
+  }
+
+  /**
+    * Robot orientation has to be within 0.5 radians of true N/S/E/W, otherwise returns None.
+    *
+    * @param robotPosition the position of the robot.
+    * @param robotRelativeDirectionRad the direction of obstructions, relative to the robot's orientation.
+    * @return the distance of the closest obstruction.
+    */
+  def distanceToClosestObstruction(robotPosition: RobotPosition, robotRelativeDirectionRad: Double): Option[Double] = {
+    val absDir: Double = ((robotPosition.orientationRad + robotRelativeDirectionRad) % (math.Pi * 2) + math.Pi * 2) % (math.Pi * 2)
+    (absDir + 0.5) % (math.Pi / 2) - 0.5 match {
+      case offCenterRad if offCenterRad < 1.0 => // within +/-0.5 radians
+        val rightAngleDistance: Double =
+          ((absDir + math.Pi / 4) / (math.Pi / 2)).toInt % 4 match {
+            case 0 => // N
+              rightAngleDistanceToClosestObstruction(
+                robotPosition: RobotPosition,
+                obstructionsOrderedByBottomEdge, obstructionsOrderedByRightEdge, obstructionsOrderedByLeftEdge,
+                _.topMm - RobotPosition.RobotSizeRadiusMm, _.bottom
+              )
+
+            case 1 => // E
+              rightAngleDistanceToClosestObstruction(
+                robotPosition: RobotPosition,
+                obstructionsOrderedByLeftEdge, obstructionsOrderedByTopEdge, obstructionsOrderedByBottomEdge,
+                - _.leftMm - RobotPosition.RobotSizeRadiusMm, - _.left
+              )
+
+            case 2 => // S
+              rightAngleDistanceToClosestObstruction(
+                robotPosition: RobotPosition,
+                obstructionsOrderedByTopEdge, obstructionsOrderedByLeftEdge, obstructionsOrderedByRightEdge,
+                - _.topMm - RobotPosition.RobotSizeRadiusMm, - _.top
+              )
+
+            case 3 => // W
+              rightAngleDistanceToClosestObstruction(
+                robotPosition: RobotPosition,
+                obstructionsOrderedByRightEdge, obstructionsOrderedByBottomEdge, obstructionsOrderedByTopEdge,
+                _.leftMm - RobotPosition.RobotSizeRadiusMm, _.right
+              )
+          }
+
+      Some(rightAngleDistance / math.cos(offCenterRad))
+
+      case _ => None
+    }
   }
 }
 case class UserDefinedMaze(startPoint: Point, startOrientationRad: Double, finish: Point, walls: Set[Maze.Wall]) extends Maze

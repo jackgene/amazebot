@@ -119,7 +119,13 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case Ping(robotRelativeDirectionRad: Double) =>
-      sender ! Pong(10000.0)
+      val newTimeMillis = System.currentTimeMillis()
+      val newRobotPosition: RobotPosition =
+        moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
+
+      sender ! Pong(
+        maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
+      )
 
     case UpdateView =>
       val newTimeMillis = System.currentTimeMillis()
