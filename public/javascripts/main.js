@@ -7,18 +7,33 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   function saveSessionState() {
     var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
 
+    $cookies.put('lang', $scope.lang, {expires: cookieExpires, path: '/'});
     $cookies.put('lastAttempted', location.pathname, {expires: cookieExpires, path: '/'});
-    $cookies.put('code', $scope.code, {expires: cookieExpires, path: location.pathname});
+    $cookies.put('source.' + $scope.lang, $scope.source, {expires: cookieExpires, path: location.pathname});
   }
 
-  function loadCodeFromTemplate() {
+  function initializeSource() {
+    $scope.source = $cookies.get('source.' + $scope.lang);
+    if (!$scope.source) loadSourceFromTemplate();
+    switch ($scope.lang) {
+      case 'java':
+        $scope.editorOptions.mode = 'text/x-java';
+        break;
+
+      case 'py':
+        $scope.editorOptions.mode = 'text/x-python';
+        break;
+    }
+  }
+
+  function loadSourceFromTemplate() {
     $http({
       method: 'GET',
-      url: location.protocol + '//' + location.host + location.pathname + '/template.java'
+      url: location.protocol + '//' + location.host + location.pathname + '/template.' + $scope.lang
     }).
     then(
       function successCallback(response) {
-        $scope.code = response.data;
+        $scope.source = response.data;
         saveSessionState();
       },
       function errorCallback(response) {
@@ -129,6 +144,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     });
   }
 
+  $scope.lang = $cookies.get('lang') || 'java';
   $scope.console = [];
   $scope.robot = {
     display: 'none'
@@ -138,7 +154,6 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
   $scope.walls = [
   ];
-
   $scope.editorOptions = {
     lineWrapping: true,
     lineNumbers: true,
@@ -151,10 +166,14 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   $scope.runSimulation = function() {
     if (!dataStream) establishWebsocketConnection();
     dataStream.send({
-      lang: 'java',
-      source: $scope.code
+      lang: $scope.lang,
+      source: $scope.source
     });
     saveSessionState();
+  };
+
+  $scope.changeLanguage = function() {
+    initializeSource();
   };
 
   $scope.clearConsole = function() {
@@ -162,12 +181,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.resetCode = function() {
-    $cookies.remove('code');
-    loadCodeFromTemplate();
+    $cookies.remove('source');
+    loadSourceFromTemplate();
   };
 
-  $scope.code = $cookies.get('code');
-  if (!$scope.code) loadCodeFromTemplate();
-
+  initializeSource();
   establishWebsocketConnection();
 });

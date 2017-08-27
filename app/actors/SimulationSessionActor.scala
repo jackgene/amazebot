@@ -6,9 +6,9 @@ import java.lang.reflect.Method
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import models.Maze.Wall
 import models._
-import org.codehaus.commons.compiler.{CompileException, CompilerFactoryFactory}
+import org.codehaus.commons.compiler.CompilerFactoryFactory
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{JsObject, JsPath, JsValue, Json}
+import play.api.libs.json.{JsPath, JsValue, Json}
 
 /**
   * Maintains state for a single simulation session (page load).
@@ -64,22 +64,20 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
   import SimulationSessionActor._
   import models.ViewUpdateInstructions._
 
-  private val PackageNameExtractor =
-    """(?s).*package\s+((?:[A-Za-z][A-Za-z0-9]+)(?:\.[A-Za-z][A-Za-z0-9]+)*).*""".r
-  private val ClassNameExtractor =
-    """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
-
   private def receive(currentRunOpt: Option[ActorRef], run: Int): Receive = {
     case KeepAlive => // Keep alive ping - no-op
 
-    case RunSimulation(_, javaSource: String) =>
+    case RunSimulation(lang: String, source: String) =>
       // Stop previous run
       currentRunOpt.foreach(context.stop)
 
       try {
         // Compile simulation source
-        val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
-        compiler.cook(javaSource)
+        val language: Language = lang match {
+          case "java" => Java
+          case "py" => Python
+        }
+        val entryPoint: Method = language.compileToEntryPointMethod(source)
 
         // Re-initialize robot position
         webSocketOut ! Json.toJson(
@@ -93,17 +91,12 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
         )
 
         // Run simulation
-        val classLoader = compiler.getClassLoader
-        val PackageNameExtractor(packageName: String) = javaSource
-        val ClassNameExtractor(className: String) = javaSource
-        val controllerClass = classLoader.loadClass(s"${packageName}.${className}")
-        val main: Method = controllerClass.getMethod("main", classOf[Array[String]])
         val nextRun = run + 1
         context.become(
           receive(
             Some(
               context.actorOf(
-                SimulationRunActor.props(webSocketOut, maze, main),
+                SimulationRunActor.props(webSocketOut, maze, entryPoint),
                 s"run-${nextRun}"
               )
             ),
@@ -111,7 +104,7 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
           )
         )
       } catch {
-        case e: CompileException =>
+        case e: Exception =>
           e.printStackTrace(
             new PrintStream(
               SimulationSessionActor.MessageSendingOutputStream(

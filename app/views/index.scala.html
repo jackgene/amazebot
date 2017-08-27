@@ -11,8 +11,14 @@
     </ul>
     <div id="input">
         <label>
-            <textarea ui-codemirror="editorOptions" ng-model="code"></textarea>
+            <textarea ui-codemirror="editorOptions" ng-model="source"></textarea>
         </label><br/>
+        <label>
+            <select ng-model="lang" ng-change="changeLanguage()">
+                <option value="java">Java 8</option>
+                <option value="py">Python 2.7</option>
+            </select>
+        </label>
         <button ng-click="runSimulation()">Run</button>
         <button ng-click="clearConsole()">Clear Console</button>
         <button ng-click="resetCode()">Reset Code</button>

@@ -52,11 +52,11 @@ object RoombaSimulatorController extends Controller {
   /**
     * Java code template.
     */
-  def codeTemplate(name: String) = Action { implicit request: Request[AnyContent] =>
+  def codeTemplate(name: String, ext: String) = Action { implicit request: Request[AnyContent] =>
     Ok.sendResource(
-      s"public/java/${name}.java" match {
+      s"public/templates/${name}.${ext}" match {
         case templatePath if getClass.getClassLoader.getResource(templatePath) != null => templatePath
-        case _ => "public/java/_default.java"
+        case _ => s"public/templates/_default.${ext}"
       }
     )
   }
