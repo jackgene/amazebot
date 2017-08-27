@@ -22,16 +22,21 @@ class Sonar {
   private implicit val AskTimeout: Timeout = 1.second
 
   def readSonar(position: String): Int = {
-    val directionRad: Double = position match {
-      case "right" => math.Pi / 2
-      case "left" => -math.Pi / 2
-      case "center" => 0.0
+    val directionRadOpt: Option[Double] = position match {
+      case "right" => Some(math.Pi / 2)
+      case "left" => Some(-math.Pi / 2)
+      case "center" => Some(0.0)
+      case _ => None
     }
-    Await.result(
-      (simulationRun ? SimulationRunActor.Ping(directionRad)).map {
-        case SimulationRunActor.Pong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
-      },
-      1.second
-    )
+
+    directionRadOpt.map { directionRad: Double =>
+      Await.result(
+        (simulationRun ? SimulationRunActor.Ping(directionRad)).map {
+          case SimulationRunActor.Pong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
+        },
+        1.second
+      )
+    }.
+    getOrElse(-1)
   }
 }
