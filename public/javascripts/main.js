@@ -157,6 +157,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     saveSessionState();
   };
 
+  $scope.clearConsole = function() {
+    $scope.console = [];
+  };
+
   $scope.resetCode = function() {
     $cookies.remove('code');
     loadCodeFromTemplate();
