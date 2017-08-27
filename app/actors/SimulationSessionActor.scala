@@ -7,7 +7,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import models.Maze.Wall
 import models._
 import org.codehaus.commons.compiler.{CompileException, CompilerFactoryFactory}
-import play.api.libs.json.Json
+import play.api.libs.functional.syntax._
+import play.api.libs.json.{JsObject, JsPath, JsValue, Json}
 
 /**
   * Maintains state for a single simulation session (page load).
@@ -16,6 +17,18 @@ import play.api.libs.json.Json
   * @since August 2017
   */
 object SimulationSessionActor {
+  // Incoming messages
+  val KeepAlive = Json.obj()
+  object RunSimulation {
+    def unapply(js: JsValue): Option[(String,String)] =
+      js.asOpt[(String,String)](
+        (
+          (JsPath \ "lang").read[String] and
+          (JsPath \ "source").read[String]
+        )(Tuple2[String,String] _)
+      )
+  }
+
   // Outgoing messages
   case class DrawMaze(finish: Point, wallsHistory: List[Set[Maze.Wall]])
   case class InitializeRobot(position: RobotPosition)
@@ -57,16 +70,14 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
     """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
 
   private def receive(currentRunOpt: Option[ActorRef], run: Int): Receive = {
-    case "!" => // Keep alive ping - no-op
+    case KeepAlive => // Keep alive ping - no-op
 
-    case javaSource: String =>
+    case RunSimulation(_, javaSource: String) =>
       // Stop previous run
       currentRunOpt.foreach(context.stop)
 
       try {
         // Compile simulation source
-        val PackageNameExtractor(packageName: String) = javaSource
-        val ClassNameExtractor(className: String) = javaSource
         val compiler = CompilerFactoryFactory.getDefaultCompilerFactory.newSimpleCompiler()
         compiler.cook(javaSource)
 
@@ -83,6 +94,8 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
 
         // Run simulation
         val classLoader = compiler.getClassLoader
+        val PackageNameExtractor(packageName: String) = javaSource
+        val ClassNameExtractor(className: String) = javaSource
         val controllerClass = classLoader.loadClass(s"${packageName}.${className}")
         val main: Method = controllerClass.getMethod("main", classOf[Array[String]])
         val nextRun = run + 1
@@ -109,6 +122,9 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
             )
           )
       }
+
+    case unexpected =>
+      log.warning(s"Unexpected message: ${unexpected} - ${unexpected.getClass}")
   }
 
   override def receive: Receive = receive(None, 0)

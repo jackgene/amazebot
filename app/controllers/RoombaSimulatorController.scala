@@ -38,14 +38,14 @@ object RoombaSimulatorController extends Controller {
   /**
     * Creates a simulation session.
     */
-  def mazeSimulation(name: String) = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
+  def mazeSimulation(name: String) = WebSocket.acceptWithActor[JsValue,JsValue] { request => webSocketOut =>
     SimulationSessionActor.props(webSocketOut, Maze.byName(name))
   }
 
   /**
     * Creates a simulation session for a random maze.
     */
-  def randomMazeSimulation = WebSocket.acceptWithActor[String,JsValue] { request => webSocketOut =>
+  def randomMazeSimulation = WebSocket.acceptWithActor[JsValue,JsValue] { request => webSocketOut =>
     SimulationSessionActor.props(webSocketOut, Maze.random(6, 6))
   }
 

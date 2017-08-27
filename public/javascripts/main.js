@@ -109,7 +109,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         keepAliveTimeout = $timeout(
           function() {
             $log.debug(new Date() + ": sending keep alive");
-            dataStream.send("!");
+            dataStream.send({});
             keepAlive();
           },
           30000 // 55 seconds is Heroku's timeout
@@ -150,7 +150,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
 
   $scope.runSimulation = function() {
     if (!dataStream) establishWebsocketConnection();
-    dataStream.send($scope.code);
+    dataStream.send({
+      lang: 'java',
+      source: $scope.code
+    });
     saveSessionState();
   };
 
