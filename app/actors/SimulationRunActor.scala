@@ -1,24 +1,24 @@
 package actors
 
 import java.io.PrintStream
-import java.lang.reflect.Method
+import java.lang.reflect.{InvocationTargetException, Method}
+import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
 import io.PerThreadPrintStream
 import models.{Maze, RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.IRobotInterface
 import play.api.libs.json.{JsValue, Json}
 
+import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{cos, sin}
 
 object SimulationRunActor {
   // Incoming messages
-  case object UpdateView
-  case object RobotProgramExited
   case class Drive(velocityMmS: Double, radiusMm: Option[Double])
   case class Ping(robotRelativeDirectionRad: Double)
 
@@ -26,6 +26,12 @@ object SimulationRunActor {
   case class MoveRobot(position: RobotPosition)
   case class ShowMessage(message: String)
   case class Pong(distanceMm: Double)
+  case class ExecuteLine(line: Int)
+
+  // Internal messages
+  private case object UpdateView
+  private case object UpdateExecuteLine
+  private case object RobotProgramExited
 
   def props(webSocketOut: ActorRef, maze: Maze, main: Method): Props = {
     Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, main)
@@ -34,6 +40,13 @@ object SimulationRunActor {
   val simulationRunHolder = new ThreadLocal[ActorRef]
 
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
+
+  def beforeRunningLine(line: Int): Unit = {
+    LockSupport.parkNanos(100000L)
+    if (Thread.interrupted()) System.exit(0)
+
+    simulationRunHolder.get ! ExecuteLine(line)
+  }
 }
 class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) extends Actor with ActorLogging {
   import SimulationRunActor._
@@ -52,7 +65,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           // A bit heavy handed, but makes sure any malicious/poorly written
           // code in main is stopped, that may not be stopped by the default
           // interrupt implementation.
-          override def interrupt(): Unit = stop()
+//          override def interrupt(): Unit = stop()
         }
       }
     }
@@ -105,7 +118,14 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     }
   }
 
-  private def receive(timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition): Receive = {
+  private def sendExecuteLine(execLine: ExecuteLine): Unit = {
+    webSocketOut ! Json.toJson(execLine)
+    context.system.scheduler.scheduleOnce(10.millis, self, UpdateExecuteLine)
+  }
+
+  private def receive(
+      timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition, recentLines: Queue[ExecuteLine]):
+      Receive = {
     case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
         if newVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
       val newTimeMillis = System.currentTimeMillis()
@@ -114,7 +134,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         receive(
           newTimeMillis,
           RobotState(newVelocityMmS, newRadiusMm),
-          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
+          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
+          recentLines
         )
       )
 
@@ -125,6 +146,17 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
       sender ! Pong(
         maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
+      )
+
+    case execLine: ExecuteLine =>
+      if (recentLines.isEmpty) {
+        sendExecuteLine(execLine)
+      } else if (recentLines.size > 1000) {
+        log.warning("Terminating simulation on execesive CPU utilization")
+        context.stop(self)
+      }
+      context.become(
+        receive(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine))
       )
 
     case UpdateView =>
@@ -166,8 +198,26 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
       }
 
+    case UpdateExecuteLine =>
+      val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
+      newRecentLines.dequeueOption match {
+        case Some((execLine: ExecuteLine, _)) =>
+          sendExecuteLine(execLine)
+
+        case None =>
+      }
+      context.become(
+        receive(timeMillis, robotState, robotPosition, newRecentLines)
+      )
+
     case RobotProgramExited =>
+      log.info("Simulation completed successfully.")
+      self ! ExecuteLine(0)
+      // TODO move this to run after all lines have been flushed?
       if (robotState.velocityMmS == 0.0) context.stop(self)
+
+    case Status.Failure(cause: Throwable) =>
+      log.error(cause, "Simulation terminated abnormally.")
   }
 
   override def receive = receive(
@@ -177,7 +227,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       topMm = maze.startPoint.topMm,
       leftMm = maze.startPoint.leftMm,
       orientationRad = maze.startOrientationRad
-    )
+    ),
+    Queue.empty
   )
 
   override def postStop(): Unit = {
@@ -209,7 +260,12 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           true
         )
       )
-      main.invoke(null, Array[String]())
+      try {
+        main.invoke(null, Array[String]())
+      } catch {
+        case e: InvocationTargetException =>
+          throw e.getCause
+      }
       RobotProgramExited
     } recoverWith {
       case t: Throwable =>

@@ -79,13 +79,21 @@ object ViewUpdateInstructions {
     }: MoveRobot => (String,Double,Double,Double)
   )
 
+  implicit val executeLineWrites: Writes[ExecuteLine] = (
+    (JsPath \ "c").write[String] and
+    (JsPath \ "l").write[Int]
+  )(
+    {
+      case ExecuteLine(line: Int) => ("l", line)
+    }: ExecuteLine => (String,Int)
+  )
+
   implicit val showMessageWrites: Writes[ShowMessage] = (
     (JsPath \ "c").write[String] and
     (JsPath \ "m").write[String]
   )(
     {
-      case ShowMessage(message: String) =>
-        ("msg", message)
+      case ShowMessage(message: String) => ("msg", message)
     }: ShowMessage => (String,String)
   )
 }

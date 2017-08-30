@@ -7,6 +7,10 @@ body {
     border: solid black 1px;
 }
 
+.running {
+    background-color: #bbb;
+}
+
 .wall {
     position: absolute;
     background-color: black;

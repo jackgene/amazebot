@@ -2,7 +2,7 @@ var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
-  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream;
+  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastLine;
 
   function saveSessionState() {
     var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
@@ -17,11 +17,11 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     if (!$scope.source) loadSourceFromTemplate();
     switch ($scope.lang) {
       case 'java':
-        $scope.editorOptions.mode = 'text/x-java';
+        $scope.codemirrorEditor.setOption('mode', 'text/x-java');
         break;
 
       case 'py':
-        $scope.editorOptions.mode = 'text/x-python';
+        $scope.codemirrorEditor.setOption('mode', 'text/x-python');
         break;
     }
   }
@@ -86,6 +86,17 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         $scope.robot.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
         $scope.robot.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
         $scope.robot.transform = 'rotate(' + instruction.o + 'rad)';
+        break;
+
+      case 'l':
+        if (lastLine) {
+          $scope.codemirrorEditor.getDoc().removeLineClass(lastLine, 'wrap', 'running');
+        }
+        if (instruction.l > 0) {
+          lastLine = $scope.codemirrorEditor.getDoc().addLineClass(instruction.l - 1, 'wrap', 'running');
+        } else {
+          lastLine = null;
+        }
         break;
 
       case 'msg':
@@ -154,13 +165,17 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
   $scope.walls = [
   ];
-  $scope.editorOptions = {
-    lineWrapping: true,
-    lineNumbers: true,
-    matchBrackets: true,
-    indentUnit: 4,
-    indentWithTabs: true,
-    mode: 'text/x-java'
+
+  $scope.codemirrorLoaded = function(editor) {
+    editor.setOption('lineWrapping', true);
+    editor.setOption('lineNumbers', true);
+    editor.setOption('matchBrackets', true);
+    editor.setOption('indentUnit', 4);
+    editor.setOption('indentWithTabs', true);
+    editor.setOption('mode', 'text/x-java');
+
+    $scope.codemirrorEditor = editor;
+    initializeSource();
   };
 
   $scope.runSimulation = function() {
@@ -185,6 +200,5 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
     loadSourceFromTemplate();
   };
 
-  initializeSource();
   establishWebsocketConnection();
 });

@@ -11,7 +11,7 @@
     </ul>
     <div id="input">
         <label>
-            <textarea ui-codemirror="editorOptions" ng-model="source"></textarea>
+            <textarea ui-codemirror="{ onLoad: codemirrorLoaded }" ng-model="source"></textarea>
         </label><br/>
         <label>
             <select ng-model="lang" ng-change="changeLanguage()">
