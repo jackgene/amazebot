@@ -1,12 +1,16 @@
 package actors
 
 import java.io.PrintStream
+import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.{InvocationTargetException, Method}
+import java.security.Permission
+import java.util.PropertyPermission
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{Executors, ThreadFactory}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
+import exceptions.ExitTrappedException
 import io.PerThreadPrintStream
 import models.{Maze, RobotPosition, RobotState}
 import org.jointheleague.ecolban.rpirobot.IRobotInterface
@@ -38,12 +42,41 @@ object SimulationRunActor {
   }
 
   val simulationRunHolder = new ThreadLocal[ActorRef]
+  val securityManagerHolder = new ThreadLocal[SecurityManager]
+
+  private val securityManager = new SecurityManager() {
+    override def checkPermission(perm: Permission) {
+      perm match {
+        case _: PropertyPermission => // OK
+
+        case sysExitPerm: RuntimePermission if sysExitPerm.getName.startsWith("exitVM") =>
+          throw new ExitTrappedException(perm.getName.substring(7).toInt)
+
+        case _ =>
+          throw new SecurityException(perm.toString)
+      }
+    }
+  }
+
+  // Stricter security manager to limit what simulation can do
+  val originalSecurityManager = System.getSecurityManager
+  System.setSecurityManager(
+    new SecurityManager() {
+      override def checkPermission(perm: Permission) {
+        val simulationSecurityManager: SecurityManager =
+          SimulationRunActor.securityManagerHolder.get
+
+        if (simulationSecurityManager != null) simulationSecurityManager.checkPermission(perm)
+        else if (originalSecurityManager != null) originalSecurityManager.checkPermission(perm)
+      }
+    }
+  )
 
   private val WheelDisplacementMmPerRadian = IRobotInterface.WHEEL_DISTANCE / 2.0
 
   def beforeRunningLine(line: Int): Unit = {
     LockSupport.parkNanos(100000L)
-    if (Thread.interrupted()) System.exit(0)
+    if (Thread.interrupted()) System.exit(143)
 
     simulationRunHolder.get ! ExecuteLine(line)
   }
@@ -56,17 +89,23 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
   val executorService = Executors.newSingleThreadExecutor(
     new ThreadFactory {
       override def newThread(r: Runnable): Thread = {
-        new Thread(r) {
-          {
-            setPriority(Thread.MIN_PRIORITY)
-          }
+        val t = new Thread(r)
+        t.setPriority(Thread.MIN_PRIORITY)
+        t.setUncaughtExceptionHandler(
+          new UncaughtExceptionHandler {
+            override def uncaughtException(t: Thread, e: Throwable): Unit = e match {
+              case e: Error =>
+                e.getCause match {
+                  case _: InterruptedException => // Ok
 
-          //noinspection ScalaDeprecation
-          // A bit heavy handed, but makes sure any malicious/poorly written
-          // code in main is stopped, that may not be stopped by the default
-          // interrupt implementation.
-//          override def interrupt(): Unit = stop()
-        }
+                  case other: Throwable =>
+                    other.printStackTrace()
+                }
+            }
+          }
+        )
+
+        t
       }
     }
   )
@@ -242,6 +281,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     Future {
       simulationRunHolder.set(self)
+      securityManagerHolder.set(securityManager)
       PerThreadPrintStream.redirectStdOut(
         new PrintStream(
           SimulationSessionActor.MessageSendingOutputStream(
@@ -260,18 +300,22 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           true
         )
       )
-      try {
-        main.invoke(null, Array[String]())
-      } catch {
-        case e: InvocationTargetException =>
-          throw e.getCause
-      }
+      main.invoke(null, Array[String]())
       RobotProgramExited
-    } recoverWith {
-      case t: Throwable =>
-        println("Exception in user program")
-        t.printStackTrace()
-        Future.failed(t)
+    } recover {
+      case e: InvocationTargetException =>
+        e.getCause match {
+          case ExitTrappedException(status: Int) if status == 0 =>
+            RobotProgramExited
+
+          case exitTrapped @ ExitTrappedException(status: Int) =>
+            System.err.println(s"Program terminated with non-zero exit code ${status}")
+            throw exitTrapped
+
+          case other: Throwable =>
+            other.printStackTrace()
+            throw other
+        }
     }
   } pipeTo context.self
 }
