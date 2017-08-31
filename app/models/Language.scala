@@ -21,12 +21,103 @@ object Language {
             val mv: MethodVisitor = super.visitMethod(access, name, desc, signature, exceptions)
 
             new MethodVisitor(Opcodes.ASM5, mv) {
+              var lastLineVisited: Int = 0
+              var instrumentedLines: Set[Int] = Set()
+
+              private def instrumentIfNecessary(): Unit = {
+                if (lastLineVisited > 0) {
+                  mv.visitLdcInsn(lastLineVisited)
+                  mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "actors/SimulationRunActor",
+                    "beforeRunningLine",
+                    Type.getMethodDescriptor(Type.VOID_TYPE, Type.getType(classOf[Int])),
+                    false
+                  )
+                  instrumentedLines = instrumentedLines + lastLineVisited
+                  lastLineVisited = 0
+                }
+              }
+
               override def visitLineNumber(line: Int, start: Label) {
                 super.visitLineNumber(line, start)
-                if (line > 0) {
-                  mv.visitLdcInsn(line)
-                  mv.visitMethodInsn(Opcodes.INVOKESTATIC, "actors/SimulationRunActor", "beforeRunningLine", Type.getMethodDescriptor(Type.VOID_TYPE, Type.getType(classOf[Int])), false)
+                if (line > 0 && !instrumentedLines.contains(line)) lastLineVisited = line
+              }
+
+              override def visitInsn(opcode: Int) {
+                if (opcode != Opcodes.RETURN) instrumentIfNecessary()
+                super.visitInsn(opcode)
+              }
+
+              override def visitIntInsn(opcode: Int, operand: Int) {
+                instrumentIfNecessary()
+                super.visitIntInsn(opcode, operand)
+              }
+
+              override def visitVarInsn(opcode: Int, `var`: Int) {
+                instrumentIfNecessary()
+                super.visitVarInsn(opcode, `var`)
+              }
+
+              override def visitTypeInsn(opcode: Int, `type`: String) {
+                if (opcode == Opcodes.NEW) {
+                  super.visitTypeInsn(opcode, `type`)
+                  instrumentIfNecessary()
                 }
+                else {
+                  instrumentIfNecessary()
+                  super.visitTypeInsn(opcode, `type`)
+                }
+              }
+
+              override def visitFieldInsn(opcode: Int, owner: String, name: String, desc: String) {
+                instrumentIfNecessary()
+                super.visitFieldInsn(opcode, owner, name, desc)
+              }
+
+              override def visitMethodInsn(opcode: Int, owner: String, name: String, desc: String, itf: Boolean) {
+                instrumentIfNecessary()
+                super.visitMethodInsn(opcode, owner, name, desc, itf)
+              }
+
+              override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: Object*) {
+                instrumentIfNecessary()
+                super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs: _*)
+              }
+
+              override def visitJumpInsn(opcode: Int, label: Label) {
+                instrumentIfNecessary()
+                super.visitJumpInsn(opcode, label)
+              }
+
+              override def visitLdcInsn(cst: Any) {
+                instrumentIfNecessary()
+                super.visitLdcInsn(cst)
+              }
+
+              override def visitIincInsn(`var`: Int, increment: Int) {
+                instrumentIfNecessary()
+                super.visitIincInsn(`var`, increment)
+              }
+
+              override def visitTableSwitchInsn(min: Int, max: Int, dflt: Label, labels: Label*) {
+                instrumentIfNecessary()
+                super.visitTableSwitchInsn(min, max, dflt, labels: _*)
+              }
+
+              override def visitLookupSwitchInsn(dflt: Label, keys: Array[Int], labels: Array[Label]) {
+                instrumentIfNecessary()
+                super.visitLookupSwitchInsn(dflt, keys, labels)
+              }
+
+              override def visitMultiANewArrayInsn(desc: String, dims: Int) {
+                instrumentIfNecessary()
+                super.visitMultiANewArrayInsn(desc, dims)
+              }
+
+              override def visitInsnAnnotation(typeRef: Int, typePath: TypePath, desc: String, visible: Boolean): AnnotationVisitor = {
+                instrumentIfNecessary()
+                super.visitInsnAnnotation(typeRef, typePath, desc, visible)
               }
             }
           }
@@ -46,15 +137,14 @@ sealed trait Language {
   def compileToEntryPointMethod(source: String): Method
 }
 case object Java extends Language {
-//  import org.codehaus.commons.compiler.CompilerFactoryFactory
-
   private val PackageNameExtractor =
     """(?s).*package\s+((?:[A-Za-z][A-Za-z0-9]+)(?:\.[A-Za-z][A-Za-z0-9]+)*).*""".r
   private val ClassNameExtractor =
     """(?s).*public\s+class\s+([A-Za-z][A-Za-z0-9]+).*""".r
 
+  System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
+
   def compileToEntryPointMethod(javaSource: String): Method = {
-    System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
     val compiler = new SimpleCompiler() {
       var result: ClassLoader = _
 
