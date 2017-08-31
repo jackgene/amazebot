@@ -2,7 +2,7 @@ var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
-  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastLine;
+  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine, lastConsoleLineBlank = false;
 
   function saveSessionState() {
     var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
@@ -89,35 +89,44 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         break;
 
       case 'l':
-        if (lastLine) {
-          $scope.codemirrorEditor.getDoc().removeLineClass(lastLine, 'wrap', 'running');
+        if (lastExecutedLine) {
+          $scope.codemirrorEditor.getDoc().removeLineClass(lastExecutedLine, 'wrap', 'running');
         }
         if (instruction.l > 0) {
-          lastLine = $scope.codemirrorEditor.getDoc().addLineClass(instruction.l - 1, 'wrap', 'running');
+          lastExecutedLine = $scope.codemirrorEditor.getDoc().addLineClass(instruction.l - 1, 'wrap', 'running');
         } else {
-          lastLine = null;
+          lastExecutedLine = null;
         }
         break;
 
       case 'msg':
         $timeout(
           function() { $window.alert(instruction.m) },
-          500
+          500,
+          false
         );
         break;
 
       case 'log':
-        if (instruction.m != "" && instruction.m != "\n")
+        if (instruction.m !== '\n' && (instruction.m !== '' || lastConsoleLineBlank)) {
           $scope.console.push(
             {
-              type: instruction.t == 'e' ? 'stderr' : 'stdout',
-              text: instruction.m
+              type: instruction.t === 'e' ? 'stderr' : 'stdout',
+              text: instruction.m + '\n'
             }
           );
-        $timeout(function() {
-          var console = document.getElementById("console");
-          console.scrollTop = console.scrollHeight;
-        }, 0, false);
+          lastConsoleLineBlank = false;
+        } else if (instruction.m === '') {
+          lastConsoleLineBlank = true;
+        }
+        $timeout(
+          function() {
+            var console = document.getElementById("console");
+            console.scrollTop = console.scrollHeight;
+          },
+          0,
+          false
+        );
         break;
     }
   }
@@ -138,7 +147,8 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
             dataStream.send({});
             keepAlive();
           },
-          30000 // 55 seconds is Heroku's timeout
+          30000, // 55 seconds is Heroku's timeout
+          false
         );
       });
     }
