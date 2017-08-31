@@ -6,7 +6,7 @@ import java.lang.reflect.{InvocationTargetException, Method}
 import java.security.Permission
 import java.util.PropertyPermission
 import java.util.concurrent.locks.LockSupport
-import java.util.concurrent.{Executors, ThreadFactory}
+import java.util.concurrent.{Executors, RejectedExecutionException, ThreadFactory}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
@@ -45,9 +45,12 @@ object SimulationRunActor {
   val securityManagerHolder = new ThreadLocal[SecurityManager]
 
   private val securityManager = new SecurityManager() {
-    override def checkPermission(perm: Permission) {
+    override def checkPermission(perm: Permission): Unit = {
+      val AllowedRuntimePermissions: Set[String] = Set("modifyThread", "setContextClassLoader")
       perm match {
         case _: PropertyPermission => // OK
+
+        case ctxClPerm: RuntimePermission if AllowedRuntimePermissions contains ctxClPerm.getName => // OK
 
         case sysExitPerm: RuntimePermission if sysExitPerm.getName.startsWith("exitVM") =>
           throw new ExitTrappedException(perm.getName.substring(7).toInt)
@@ -277,7 +280,13 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
   // Start simulation
   {
-    implicit val ec = ExecutionContext.fromExecutorService(executorService)
+    implicit val ec = ExecutionContext.fromExecutorService(
+      executorService,
+      {
+        case _: RejectedExecutionException => // Swallow
+        case other: Throwable => other.printStackTrace()
+      }
+    )
 
     Future {
       simulationRunHolder.set(self)
