@@ -2,7 +2,7 @@ var roombaSimApp = angular.module(
   'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
 roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
-  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine, lastConsoleLineBlank = false;
+  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine;
 
   function saveSessionState() {
     var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
@@ -108,17 +108,12 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         break;
 
       case 'log':
-        if (instruction.m !== '\n' && (instruction.m !== '' || lastConsoleLineBlank)) {
-          $scope.console.push(
-            {
-              type: instruction.t === 'e' ? 'stderr' : 'stdout',
-              text: instruction.m + '\n'
-            }
-          );
-          lastConsoleLineBlank = false;
-        } else if (instruction.m === '') {
-          lastConsoleLineBlank = true;
-        }
+        $scope.console.push(
+          {
+            type: instruction.t === 'e' ? 'stderr' : 'stdout',
+            text: instruction.m + '\n'
+          }
+        );
         $timeout(
           function() {
             var console = document.getElementById("console");

@@ -45,11 +45,19 @@ object SimulationSessionActor {
   private[actors] case class MessageSendingOutputStream(webSocketOut: ActorRef, msg: String => PrintToConsole)
       extends OutputStream {
     private val buf = new ByteArrayOutputStream()
+    private var lastBlankLineSkipped: Boolean = true
 
     override def flush(): Unit = {
       import models.ViewUpdateInstructions._
 
-      webSocketOut ! Json.toJson(msg(buf.toString))
+      val line: String = buf.toString
+      val blankLine: Boolean = line.trim.isEmpty
+      if (line != "\n" && (lastBlankLineSkipped || !blankLine)) {
+        webSocketOut ! Json.toJson(msg(line))
+        lastBlankLineSkipped = false
+      } else if (blankLine) {
+        lastBlankLineSkipped = true
+      }
       buf.reset()
     }
 
