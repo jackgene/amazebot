@@ -75,7 +75,7 @@ object ViewUpdateInstructions {
   )(
     {
       case MoveRobot(position: RobotPosition) =>
-        ("mv", math.round(position.topMm), math.round(position.leftMm), roundOrient(position.orientationRad))
+        ("m", math.round(position.topMm), math.round(position.leftMm), roundOrient(position.orientationRad))
     }: MoveRobot => (String,Double,Double,Double)
   )
 

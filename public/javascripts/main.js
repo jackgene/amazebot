@@ -82,7 +82,7 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
         );
         break;
 
-      case 'mv':
+      case 'm':
         $scope.robot.top = (instruction.t - robotRadiusMm) * pxPerMm + 'px';
         $scope.robot.left = (instruction.l - robotRadiusMm) * pxPerMm + 'px';
         $scope.robot.transform = 'rotate(' + instruction.o + 'rad)';
