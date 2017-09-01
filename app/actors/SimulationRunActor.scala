@@ -183,6 +183,12 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       if (recentLines.isEmpty) {
         sendExecuteLine(execLine)
       } else if (recentLines.size > 1000) {
+        webSocketOut ! Json.toJson(
+          SimulationSessionActor.PrintToConsole(
+            SimulationSessionActor.StdErr,
+            "Simulation terminated for execessive CPU utilization."
+          )
+        )
         log.warning("Terminating simulation on execesive CPU utilization")
         context.stop(self)
       }
@@ -307,7 +313,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
             RobotProgramExited
 
           case exitTrapped @ ExitTrappedException(status: Int) =>
-            System.err.println(s"Program terminated with non-zero exit code ${status}")
+            System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
             throw exitTrapped
 
           case other: Throwable =>
