@@ -333,12 +333,10 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     } recover {
       case e: InvocationTargetException =>
         e.getCause match {
-          case ExitTrappedException(status: Int) if status == 0 =>
-            RobotProgramExited
-
           case exitTrapped @ ExitTrappedException(status: Int) =>
-            System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
-            throw exitTrapped
+            if (status != 0)
+              System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
+            RobotProgramExited
 
           case other: Throwable =>
             other.printStackTrace()
