@@ -154,7 +154,15 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     context.system.scheduler.scheduleOnce(10.millis, self, UpdateExecuteLine)
   }
 
-  private def receive(
+  private def gracefulStop(recentLines: Queue[ExecuteLine]): Unit = {
+    if (recentLines.isEmpty) context.stop(self)
+    else {
+      postStop() // Perform clean up already
+      context.become(stopping(recentLines))
+    }
+  }
+
+  private def running(
       timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition, recentLines: Queue[ExecuteLine]):
       Receive = {
     case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
@@ -162,7 +170,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       val newTimeMillis = System.currentTimeMillis()
 
       context.become(
-        receive(
+        running(
           newTimeMillis,
           RobotState(newVelocityMmS, newRadiusMm),
           moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
@@ -180,9 +188,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case execLine: ExecuteLine =>
-      if (recentLines.isEmpty) {
-        sendExecuteLine(execLine)
-      } else if (recentLines.size > 1000) {
+      if (recentLines.size > 1000) {
         webSocketOut ! Json.toJson(
           SimulationSessionActor.PrintToConsole(
             SimulationSessionActor.StdErr,
@@ -190,11 +196,15 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           )
         )
         log.warning("Terminating simulation on execesive CPU utilization")
-        context.stop(self)
+        gracefulStop(recentLines)
+      } else {
+        if (recentLines.isEmpty) {
+          sendExecuteLine(execLine)
+        }
+        context.become(
+          running(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine))
+        )
       }
-      context.become(
-        receive(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine))
-      )
 
     case UpdateView =>
       val newTimeMillis = System.currentTimeMillis()
@@ -230,7 +240,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
             // This will never happen. Shame on the Scala compiler for not being able to infer this.
         }
         instrs.foreach { webSocketOut ! _}
-        context.stop(self)
+        gracefulStop(recentLines)
       } else {
         webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
       }
@@ -244,20 +254,34 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         case None =>
       }
       context.become(
-        receive(timeMillis, robotState, robotPosition, newRecentLines)
+        running(timeMillis, robotState, robotPosition, newRecentLines)
       )
 
     case RobotProgramExited =>
       log.info("Simulation completed successfully.")
       self ! ExecuteLine(0)
-      // TODO move this to run after all lines have been flushed?
-      if (robotState.velocityMmS == 0.0) context.stop(self)
+      if (robotState.velocityMmS == 0.0) gracefulStop(recentLines)
 
     case Status.Failure(cause: Throwable) =>
       log.error(cause, "Simulation terminated abnormally.")
+      gracefulStop(recentLines)
   }
 
-  override def receive = receive(
+  private def stopping(recentLines: Queue[ExecuteLine]): Receive = {
+    case execLine: ExecuteLine => // No-op, this is usually from malicious code?
+
+    case UpdateExecuteLine =>
+      val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
+      newRecentLines.dequeueOption match {
+        case Some((execLine: ExecuteLine, _)) =>
+          sendExecuteLine(execLine)
+          context.become(stopping(newRecentLines))
+
+        case None => context.stop(self)
+      }
+  }
+
+  override def receive = running(
     System.currentTimeMillis,
     RobotState(velocityMmS = 0, radiusMm = None),
     RobotPosition(
