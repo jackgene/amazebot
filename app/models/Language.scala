@@ -12,7 +12,7 @@ import org.objectweb.asm._
 object Language {
   def transform(byteCode: Array[Byte]): Array[Byte] = {
     val reader: ClassReader = new ClassReader(byteCode)
-    val writer: ClassWriter = new ClassWriter(reader, 0)
+    val writer: ClassWriter = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS)
 
     try {
       reader.accept(
