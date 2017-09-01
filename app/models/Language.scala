@@ -174,12 +174,20 @@ case object Java extends Language {
       }
     }
     compiler.cook(javaSource)
-    val PackageNameExtractor(packageName: String) = javaSource
+    val packageName = javaSource match {
+      case PackageNameExtractor(packageName: String) => packageName + "."
+      case _ => ""
+    }
     val ClassNameExtractor(className: String) = javaSource
 
-    compiler.getClassLoader.
-      loadClass(s"${packageName}.${className}").
-      getMethod("main", classOf[Array[String]])
+    try {
+      compiler.getClassLoader.
+        loadClass(s"${packageName}${className}").
+        getMethod("main", classOf[Array[String]])
+    } catch {
+      case e: VerifyError =>
+        throw new RuntimeException(e.getMessage)
+    }
   }
 }
 case object Python extends Language {
