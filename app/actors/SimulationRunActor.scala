@@ -1,7 +1,6 @@
 package actors
 
 import java.io.PrintStream
-import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.{InvocationTargetException, Method}
 import java.security.Permission
 import java.util.PropertyPermission
@@ -42,11 +41,14 @@ object SimulationRunActor {
   }
 
   val simulationRunHolder = new ThreadLocal[ActorRef]
-  val securityManagerHolder = new ThreadLocal[SecurityManager]
 
+  // Stricter security manager to limit what simulation can do
   private val securityManager = new SecurityManager() {
     override def checkPermission(perm: Permission): Unit = {
-      val AllowedRuntimePermissions: Set[String] = Set("modifyThread", "setContextClassLoader")
+      val AllowedRuntimePermissions: Set[String] = Set(
+        "accessDeclaredMembers", "modifyThread", "setContextClassLoader"
+      )
+
       perm match {
         case _: PropertyPermission => // OK
 
@@ -60,9 +62,10 @@ object SimulationRunActor {
       }
     }
   }
-
-  // Stricter security manager to limit what simulation can do
-  val originalSecurityManager = System.getSecurityManager
+  private val originalSecurityManager = System.getSecurityManager
+  private val securityManagerHolder = new ThreadLocal[SecurityManager] {
+    override val initialValue = originalSecurityManager
+  }
   System.setSecurityManager(
     new SecurityManager() {
       override def checkPermission(perm: Permission) {
@@ -70,7 +73,6 @@ object SimulationRunActor {
           SimulationRunActor.securityManagerHolder.get
 
         if (simulationSecurityManager != null) simulationSecurityManager.checkPermission(perm)
-        else if (originalSecurityManager != null) originalSecurityManager.checkPermission(perm)
       }
     }
   )
@@ -94,19 +96,6 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       override def newThread(r: Runnable): Thread = {
         val t = new Thread(r)
         t.setPriority(Thread.MIN_PRIORITY)
-        t.setUncaughtExceptionHandler(
-          new UncaughtExceptionHandler {
-            override def uncaughtException(t: Thread, e: Throwable): Unit = e match {
-              case e: Error =>
-                e.getCause match {
-                  case _: InterruptedException => // Ok
-
-                  case other: Throwable =>
-                    other.printStackTrace()
-                }
-            }
-          }
-        )
 
         t
       }
