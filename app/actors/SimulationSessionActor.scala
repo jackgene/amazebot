@@ -4,9 +4,9 @@ import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
 import java.lang.reflect.Method
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import engines.{Java, Language, Python}
 import models.Maze.Wall
 import models._
-import org.codehaus.commons.compiler.CompilerFactoryFactory
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, JsValue, Json}
 
@@ -80,7 +80,7 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
           case "java" => Java
           case "py" => Python
         }
-        val entryPoint: Method = language.compileToEntryPointMethod(source)
+        val entryPoint: Method = language.makeEntryPointMethod(source)
 
         // Re-initialize robot position
         webSocketOut ! Json.toJson(
