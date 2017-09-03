@@ -44,25 +44,31 @@ object SimulationRunActor {
 
   // Stricter security manager to limit what simulation can do
   private val securityManager = new SecurityManager() {
+    private val AllowedRuntimePerms = Set(
+      "accessDeclaredMembers", "modifyThread", "setContextClassLoader",
+      // Jython-specific
+      "accessClassInPackage.sun.reflect",
+      "accessClassInPackage.sun.text.resources",
+      "accessClassInPackage.sun.util.resources",
+      "createClassLoader",
+      "getProtectionDomain"
+    )
+    private val AllowedReflectPerms = Set(
+      // Jython-specific - they are all for Jython
+      "newProxyInPackage.org.python.modules.posix",
+      "suppressAccessChecks"
+    )
+
     override def checkPermission(perm: Permission): Unit = {
-      val AllowedRuntimePermissions = Set(
-        "accessDeclaredMembers", "modifyThread", "setContextClassLoader",
-        // Jython-specific
-        "accessClassInPackage.sun.reflect",
-        "accessClassInPackage.sun.text.resources",
-        "accessClassInPackage.sun.util.resources",
-        "createClassLoader"
-      )
       perm match {
         case _: PropertyPermission => // OK
 
-        case runtime: RuntimePermission if AllowedRuntimePermissions.contains(runtime.getName) => // OK
+        case runtime: RuntimePermission if AllowedRuntimePerms.contains(runtime.getName) => // OK
 
         case sysExit: RuntimePermission if sysExit.getName.startsWith("exitVM") =>
           throw new ExitTrappedException(perm.getName.substring(7).toInt)
 
-        // Jython-specific
-        case reflect: ReflectPermission if reflect.getName == "suppressAccessChecks" => // OK
+        case reflect: ReflectPermission if AllowedReflectPerms.contains(reflect.getName) => // OK
 
         case libRead: FilePermission if libRead.getName.contains("/lib/") && libRead.getActions == "read" => // OK
 
