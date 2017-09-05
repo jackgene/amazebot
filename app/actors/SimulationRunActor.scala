@@ -258,7 +258,6 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case UpdateView =>
-      println(robotProgram.cpuTimePercent)
       if (robotProgram.runningTimeMillis < 1000 || robotProgram.cpuTimePercent < 0.05) {
         val newTimeMillis = System.currentTimeMillis()
         val newRobotPosition: RobotPosition =
