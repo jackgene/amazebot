@@ -11,7 +11,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
 import exceptions.ExitTrappedException
 import io.PerThreadPrintStream
-import models.{Maze, RobotPosition, RobotState}
+import models.{Maze, RobotPosition, RobotProgramStats, RobotState}
 import org.jointheleague.ecolban.rpirobot.IRobotInterface
 import play.api.libs.json.{JsValue, Json}
 
@@ -111,10 +111,31 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
   val executorService = Executors.newSingleThreadExecutor(
     new ThreadFactory {
       override def newThread(r: Runnable): Thread = {
-        val t = new Thread(r)
-        t.setPriority(Thread.MIN_PRIORITY)
+        new Thread(r) {
+          setPriority(Thread.MIN_PRIORITY)
+          context.become(
+            running(
+              System.currentTimeMillis,
+              RobotState(velocityMmS = 0, radiusMm = None),
+              RobotPosition(
+                topMm = maze.startPoint.topMm,
+                leftMm = maze.startPoint.leftMm,
+                orientationRad = maze.startOrientationRad
+              ),
+              Queue.empty,
+              RobotProgramStats(this)
+            )
+          )
 
-        t
+          /**
+            * Heavy handed, but ensures that runaway programs get terminated successfully.
+            */
+          override def interrupt(): Unit = {
+            super.interrupt()
+            //noinspection ScalaDeprecation
+            stop()
+          }
+        }
       }
     }
   )
@@ -179,8 +200,11 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     }
   }
 
+  private def initializing: Receive = PartialFunction.empty
+
   private def running(
-      timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition, recentLines: Queue[ExecuteLine]):
+      timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition,
+      recentLines: Queue[ExecuteLine], robotProgram: RobotProgramStats):
       Receive = {
     case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
         if newVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
@@ -191,7 +215,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           newTimeMillis,
           robotState.copy(velocityMmS = newVelocityMmS, radiusMm = newRadiusMm),
           moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
-          recentLines
+          recentLines,
+          robotProgram
         )
       )
 
@@ -210,7 +235,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           timeMillis,
           robotState.copy(orientationRadOnSensorRead = Some(curOrientationRad)),
           robotPosition,
-          recentLines
+          recentLines,
+          robotProgram
         )
       )
 
@@ -224,7 +250,54 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case execLine: ExecuteLine =>
-      if (recentLines.size > 1000) {
+      if (recentLines.isEmpty) {
+        sendExecuteLine(execLine)
+      }
+      context.become(
+        running(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine), robotProgram)
+      )
+
+    case UpdateView =>
+      println(robotProgram.cpuTimePercent)
+      if (robotProgram.runningTimeMillis < 1000 || robotProgram.cpuTimePercent < 0.05) {
+        val newTimeMillis = System.currentTimeMillis()
+        val newRobotPosition: RobotPosition =
+          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
+        val obstructed: Boolean = maze.obstructionsInContact(newRobotPosition).nonEmpty
+        lazy val finished: Boolean = maze.hasFinished(newRobotPosition)
+
+        if (obstructed || finished) {
+          val instrs: Seq[JsValue] = (obstructed, finished) match {
+            case (true, _) =>
+              val stepMillis: Int = (5000 / math.abs(robotState.velocityMmS)).toInt // step = time taken to travel 5mm/0.5px
+              val adjNewRobotPosition: RobotPosition = Iterator.
+                from(start = stepMillis, step = stepMillis).
+                map { backupMillis: Int =>
+                  moveRobot(timeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
+                }.
+                find { maze.obstructionsInContact(_).isEmpty }.
+                get
+              Seq(
+                Json.toJson(MoveRobot(adjNewRobotPosition)),
+                if (maze.hasFinished(adjNewRobotPosition)) Json.toJson(ShowMessage("You have won!"))
+                else Json.toJson(ShowMessage("You have hit a wall!"))
+              )
+
+            case (false, true) =>
+              Seq(
+                Json.toJson(MoveRobot(newRobotPosition)),
+                Json.toJson(ShowMessage("You have won!"))
+              )
+
+            case (false, false) => Seq()
+              // This will never happen. Shame on the Scala compiler for not being able to infer this.
+          }
+          instrs.foreach { webSocketOut ! _}
+          gracefulStop(recentLines)
+        } else {
+          webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
+        }
+      } else {
         webSocketOut ! Json.toJson(
           SimulationSessionActor.PrintToConsole(
             SimulationSessionActor.StdErr,
@@ -233,52 +306,6 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         )
         log.warning("Terminating simulation on execesive CPU utilization")
         gracefulStop(recentLines)
-      } else {
-        if (recentLines.isEmpty) {
-          sendExecuteLine(execLine)
-        }
-        context.become(
-          running(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine))
-        )
-      }
-
-    case UpdateView =>
-      val newTimeMillis = System.currentTimeMillis()
-      val newRobotPosition: RobotPosition =
-        moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
-      val obstructed: Boolean = maze.obstructionsInContact(newRobotPosition).nonEmpty
-      lazy val finished: Boolean = maze.hasFinished(newRobotPosition)
-
-      if (obstructed || finished) {
-        val instrs: Seq[JsValue] = (obstructed, finished) match {
-          case (true, _) =>
-            val stepMillis: Int = (5000 / math.abs(robotState.velocityMmS)).toInt // step = time taken to travel 5mm/0.5px
-            val adjNewRobotPosition: RobotPosition = Iterator.
-              from(start = stepMillis, step = stepMillis).
-              map { backupMillis: Int =>
-                moveRobot(timeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
-              }.
-              find { maze.obstructionsInContact(_).isEmpty }.
-              get
-            Seq(
-              Json.toJson(MoveRobot(adjNewRobotPosition)),
-              if (maze.hasFinished(adjNewRobotPosition)) Json.toJson(ShowMessage("You have won!"))
-              else Json.toJson(ShowMessage("You have hit a wall!"))
-            )
-
-          case (false, true) =>
-            Seq(
-              Json.toJson(MoveRobot(newRobotPosition)),
-              Json.toJson(ShowMessage("You have won!"))
-            )
-
-          case (false, false) => Seq()
-            // This will never happen. Shame on the Scala compiler for not being able to infer this.
-        }
-        instrs.foreach { webSocketOut ! _}
-        gracefulStop(recentLines)
-      } else {
-        webSocketOut ! Json.toJson(MoveRobot(newRobotPosition))
       }
 
     case UpdateExecuteLine =>
@@ -291,7 +318,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         case None =>
       }
       context.become(
-        running(timeMillis, robotState, robotPosition, newRecentLines)
+        running(timeMillis, robotState, robotPosition, newRecentLines, robotProgram)
       )
 
     case RobotProgramExited =>
@@ -318,16 +345,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       }
   }
 
-  override def receive = running(
-    System.currentTimeMillis,
-    RobotState(velocityMmS = 0, radiusMm = None),
-    RobotPosition(
-      topMm = maze.startPoint.topMm,
-      leftMm = maze.startPoint.leftMm,
-      orientationRad = maze.startOrientationRad
-    ),
-    Queue.empty
-  )
+  override def receive = initializing
 
   override def postStop(): Unit = {
     viewUpdateScheduler.cancel()
