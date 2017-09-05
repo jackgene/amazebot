@@ -7,6 +7,7 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
+  "org.antlr" % "antlr-runtime" % "3.5.2",
   "org.codehaus.janino" % "janino" % "3.0.7",
   "org.ow2.asm" % "asm-debug-all" % "5.2",
   "org.python" % "jython-standalone" % "2.7.1",
