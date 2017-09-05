@@ -2,7 +2,11 @@ package org.jointheleague.ecolban.rpirobot
 
 import actors.SimulationRunActor
 import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.math.{max, min}
 
 /**
@@ -16,6 +20,7 @@ object SimpleIRobot {
 }
 class SimpleIRobot extends IRobotInterface {
   import SimpleIRobot._
+  import IRobotInterface._
 
   val MaxVelocityMmS = 500
   val MinVelocityMms = -500
@@ -23,9 +28,13 @@ class SimpleIRobot extends IRobotInterface {
   val MinRadiusMm = -2000
 
   private val simulationRun: ActorRef = SimulationRunActor.simulationRunHolder.get
+  private implicit val AskTimeout: Timeout = 1.second
+
+  private var angleDegrees: Int = 0
 
   private def afterCommandPause(): Unit = Thread.sleep(AfterCommandPauseTimeMillis)
 
+  // Movement
   private def adjustedVelocity(velocityMms: Int) =
     if (velocityMms > 0) min(velocityMms, MaxVelocityMmS)
     else max(velocityMms, MinVelocityMms)
@@ -85,10 +94,32 @@ class SimpleIRobot extends IRobotInterface {
     afterCommandPause()
   }
 
+  // Sensors
+  override def readSensors(sensorId: Int): Unit = {
+    sensorId match {
+      case SENSORS_ANGLE =>
+        for {
+          SimulationRunActor.AngleSensorValue(angleRadOpt: Option[Double]) <-
+            simulationRun ? SimulationRunActor.ReadAngleSensor
+        } {
+          for (angleRad: Double <- angleRadOpt) {
+            angleDegrees = (angleRad / math.Pi * 180 + 0.5).toInt
+          }
+        }
+
+      case _ => throw new UnsupportedOperationException("The requested sensor is not supported")
+    }
+    afterCommandPause()
+  }
+
+  override def getAngle: Int = angleDegrees
+
+  // Resource management
   override def closeConnection(): Unit = {}
 
   override def reset(): Unit = {}
 
+  // Unsupported
   override def isCliffFrontLeft: Boolean = ???
 
   override def getBatteryCapacity: Int = ???
@@ -181,8 +212,6 @@ class SimpleIRobot extends IRobotInterface {
 
   override def getCliffSignalRight: Int = ???
 
-  override def getAngle: Int = ???
-
   override def isWheelDropRight: Boolean = ???
 
   override def getCliffSignalLeft: Int = ???
@@ -196,8 +225,6 @@ class SimpleIRobot extends IRobotInterface {
   override def full(): Unit = ???
 
   override def getCliffSignalRightFront: Int = ???
-
-  override def readSensors(i: Int): Unit = ???
 
   override def isWall: Boolean = ???
 

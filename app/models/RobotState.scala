@@ -15,5 +15,12 @@ case class RobotState(
    *
    * Absence of a value means the robot is moving in a straight line.
    */
-  radiusMm: Option[Double]
+  radiusMm: Option[Double],
+
+  /**
+   * Absolute orientation of the robot when the angle sensor was read.
+   *
+   * Absence of a value means the sensor has never been read.
+   */
+  orientationRadOnSensorRead: Option[Double] = None
 )

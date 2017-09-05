@@ -31,8 +31,8 @@ class Sonar {
 
     directionRadOpt.map { directionRad: Double =>
       Await.result(
-        (simulationRun ? SimulationRunActor.Ping(directionRad)).map {
-          case SimulationRunActor.Pong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
+        (simulationRun ? SimulationRunActor.SonarPing(directionRad)).map {
+          case SimulationRunActor.SonarPong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
         },
         1.second
       )

@@ -23,12 +23,14 @@ import scala.math.{cos, sin}
 object SimulationRunActor {
   // Incoming messages
   case class Drive(velocityMmS: Double, radiusMm: Option[Double])
-  case class Ping(robotRelativeDirectionRad: Double)
+  case object ReadAngleSensor
+  case class SonarPing(robotRelativeDirectionRad: Double)
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
+  case class AngleSensorValue(angleRad: Option[Double])
+  case class SonarPong(distanceMm: Double)
   case class ShowMessage(message: String)
-  case class Pong(distanceMm: Double)
   case class ExecuteLine(line: Int)
 
   // Internal messages
@@ -127,10 +129,10 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     robotState match {
       // Not moving
-      case RobotState(0, _) => oldRobotPosition
+      case RobotState(0, _, _) => oldRobotPosition
 
       // Turning in place
-      case RobotState(velocityMmS: Double, Some(0.0)) =>
+      case RobotState(velocityMmS: Double, Some(0.0), _) =>
         oldRobotPosition.copy(
           orientationRad =
             oldRobotPosition.orientationRad +
@@ -138,7 +140,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         )
 
       // Moving in a straight line
-      case RobotState(velocityMmS: Double, None) =>
+      case RobotState(velocityMmS: Double, None, _) =>
         val displacementMm = velocityMmS * durationSecs
         val orientationRad = oldRobotPosition.orientationRad
 
@@ -148,7 +150,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         )
 
       // Moving in a curve
-      case RobotState(velocityMmS: Double, Some(radiusMm: Double)) =>
+      case RobotState(velocityMmS: Double, Some(radiusMm: Double), _) =>
         val displacementMm = velocityMmS * durationSecs
         val orientationDeltaRads = displacementMm / -radiusMm.toDouble
         val orientationRads = oldRobotPosition.orientationRad
@@ -187,18 +189,37 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       context.become(
         running(
           newTimeMillis,
-          RobotState(newVelocityMmS, newRadiusMm),
+          robotState.copy(velocityMmS = newVelocityMmS, radiusMm = newRadiusMm),
           moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
           recentLines
         )
       )
 
-    case Ping(robotRelativeDirectionRad: Double) =>
+    case ReadAngleSensor =>
+      val curOrientationRad: Double =
+        moveRobot(timeMillis, System.currentTimeMillis(), robotState, robotPosition).
+        orientationRad
+
+      sender ! AngleSensorValue(
+        robotState.orientationRadOnSensorRead.map {
+          _ - curOrientationRad
+        }
+      )
+      context.become(
+        running(
+          timeMillis,
+          robotState.copy(orientationRadOnSensorRead = Some(curOrientationRad)),
+          robotPosition,
+          recentLines
+        )
+      )
+
+    case SonarPing(robotRelativeDirectionRad: Double) =>
       val newTimeMillis = System.currentTimeMillis()
       val newRobotPosition: RobotPosition =
         moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
 
-      sender ! Pong(
+      sender ! SonarPong(
         maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
       )
 
@@ -225,9 +246,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       val newTimeMillis = System.currentTimeMillis()
       val newRobotPosition: RobotPosition =
         moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
-
       val obstructed: Boolean = maze.obstructionsInContact(newRobotPosition).nonEmpty
       lazy val finished: Boolean = maze.hasFinished(newRobotPosition)
+
       if (obstructed || finished) {
         val instrs: Seq[JsValue] = (obstructed, finished) match {
           case (true, _) =>
@@ -262,6 +283,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     case UpdateExecuteLine =>
       val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
+
       newRecentLines.dequeueOption match {
         case Some((execLine: ExecuteLine, _)) =>
           sendExecuteLine(execLine)
