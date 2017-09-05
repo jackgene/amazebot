@@ -4,11 +4,11 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET     /                           controllers.RoombaSimulatorController.index
-GET     /maze/:name                 controllers.RoombaSimulatorController.maze(name: String)
-GET     /maze/random/simulation     controllers.RoombaSimulatorController.randomMazeSimulation
-GET     /maze/:name/simulation      controllers.RoombaSimulatorController.mazeSimulation(name: String)
-GET     /maze/:name/template.:ext   controllers.RoombaSimulatorController.codeTemplate(name: String, ext: String)
+GET     /                           controllers.AMazeBotController.index
+GET     /maze/:name                 controllers.AMazeBotController.maze(name: String)
+GET     /maze/random/simulation     controllers.AMazeBotController.randomMazeSimulation
+GET     /maze/:name/simulation      controllers.AMazeBotController.mazeSimulation(name: String)
+GET     /maze/:name/template.:ext   controllers.AMazeBotController.codeTemplate(name: String, ext: String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

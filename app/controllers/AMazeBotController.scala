@@ -15,7 +15,7 @@ import play.api.mvc._
   * @author Jack Leow
   * @since August 2017
  */
-object RoombaSimulatorController extends Controller {
+object AMazeBotController extends Controller {
   /**
    * The home page.
    */
