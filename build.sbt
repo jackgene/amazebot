@@ -1,4 +1,4 @@
-name := """roomba-sim-poc"""
+name := """amazebot"""
 
 version := "1.0-SNAPSHOT"
 
