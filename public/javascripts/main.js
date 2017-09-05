@@ -1,7 +1,7 @@
-var roombaSimApp = angular.module(
-  'roombaSimApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
+var aMazeBotApp = angular.module(
+  'aMazeBotApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
-roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
+aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
   var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine;
 
   function saveSessionState() {
@@ -201,8 +201,10 @@ roombaSimApp.controller('roombaSimController', function ($scope, $cookies, $http
   };
 
   $scope.resetCode = function() {
-    $cookies.remove('source');
-    loadSourceFromTemplate();
+    if ($window.confirm('Resets the program to the original version. All your changes will be lost. Are you sure?')) {
+      $cookies.remove('source');
+      loadSourceFromTemplate();
+    }
   };
 
   establishWebsocketConnection();
