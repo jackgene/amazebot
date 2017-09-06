@@ -44,11 +44,13 @@ object SimulationRunActor {
       }
     }
   }
+  case object ReadDistanceSensor
   case object ReadAngleSensor
   case class SonarPing(robotRelativeDirectionRad: Double)
 
   // Outgoing messages
   case class MoveRobot(position: RobotPosition)
+  case class DistanceSensorValue(distanceMm: Option[Double])
   case class AngleSensorValue(angleRad: Option[Double])
   case class SonarPong(distanceMm: Double)
   case class ShowMessage(message: String)
@@ -171,10 +173,10 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     robotState match {
       // Not moving
-      case RobotState(0, _, _) => oldRobotPosition
+      case RobotState(0, _, _, _) => oldRobotPosition
 
       // Turning in place
-      case RobotState(velocityMmS: Double, Some(0.0), _) =>
+      case RobotState(velocityMmS: Double, Some(0.0), _, _) =>
         oldRobotPosition.copy(
           orientationRad =
             oldRobotPosition.orientationRad +
@@ -182,7 +184,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         )
 
       // Moving in a straight line
-      case RobotState(velocityMmS: Double, None, _) =>
+      case RobotState(velocityMmS: Double, None, _, _) =>
         val displacementMm = velocityMmS * durationSecs
         val orientationRad = oldRobotPosition.orientationRad
 
@@ -192,7 +194,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         )
 
       // Moving in a curve
-      case RobotState(velocityMmS: Double, Some(radiusMm: Double), _) =>
+      case RobotState(velocityMmS: Double, Some(radiusMm: Double), _, _) =>
         val displacementMm = velocityMmS * durationSecs
         val orientationDeltaRads = displacementMm / -radiusMm.toDouble
         val orientationRads = oldRobotPosition.orientationRad
@@ -224,18 +226,68 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
   private def initializing: Receive = PartialFunction.empty
 
   private def running(
-      timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition,
+      lastDriveChangeTimeMillis: Long, robotState: RobotState, robotPosition: RobotPosition,
       recentLines: Queue[ExecuteLine], robotProgram: RobotProgramStats):
       Receive = {
     case drive @ Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
         if drive.adjustedVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
-      val newTimeMillis = System.currentTimeMillis()
+      val newDriveChangeTimeMillis = System.currentTimeMillis()
 
       context.become(
         running(
-          newTimeMillis,
-          robotState.copy(velocityMmS = drive.adjustedVelocityMmS, radiusMm = newRadiusMm),
-          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
+          newDriveChangeTimeMillis,
+          robotState.copy(
+            velocityMmS = drive.adjustedVelocityMmS,
+            radiusMm = newRadiusMm,
+            distanceSensorState = robotState.distanceSensorState match {
+              // Never read - nothing to track
+              case noRead @ Left(None) => noRead
+
+              // First drive changes since distance read
+              case Left(Some(lastReadTimeMillis: Long)) =>
+                Right(
+                  robotState.velocityMmS * (newDriveChangeTimeMillis - lastReadTimeMillis) / 1000.0
+                )
+
+              // There have been other drive changes since last read
+              case Right(distToLastDriveChange: Double) =>
+                Right(
+                  distToLastDriveChange + robotState.velocityMmS * (newDriveChangeTimeMillis - lastDriveChangeTimeMillis) / 1000.0
+                )
+            }
+          ),
+          moveRobot(lastDriveChangeTimeMillis, newDriveChangeTimeMillis, robotState, robotPosition),
+          recentLines,
+          robotProgram
+        )
+      )
+
+    case ReadDistanceSensor =>
+      val curReadTimeMillis: Long = System.currentTimeMillis()
+
+      sender ! DistanceSensorValue(
+        robotState.distanceSensorState match {
+          // First read
+          case Left(None) => None
+
+          // There have been no drive changes since last read
+          case Left(Some(lastReadTimeMillis: Long)) =>
+            Some(
+              robotState.velocityMmS * (curReadTimeMillis - lastReadTimeMillis) / 1000.0
+            )
+
+          // There have been drive changes since last read
+          case Right(distToLastDriveChange: Double) =>
+            Some(
+              distToLastDriveChange + robotState.velocityMmS * (curReadTimeMillis - lastDriveChangeTimeMillis) / 1000.0
+            )
+        }
+      )
+      context.become(
+        running(
+          lastDriveChangeTimeMillis,
+          robotState.copy(distanceSensorState = Left(Some(curReadTimeMillis))),
+          robotPosition,
           recentLines,
           robotProgram
         )
@@ -243,7 +295,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     case ReadAngleSensor =>
       val curOrientationRad: Double =
-        moveRobot(timeMillis, System.currentTimeMillis(), robotState, robotPosition).
+        moveRobot(lastDriveChangeTimeMillis, System.currentTimeMillis(), robotState, robotPosition).
         orientationRad
 
       sender ! AngleSensorValue(
@@ -253,7 +305,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
       context.become(
         running(
-          timeMillis,
+          lastDriveChangeTimeMillis,
           robotState.copy(orientationRadOnSensorRead = Some(curOrientationRad)),
           robotPosition,
           recentLines,
@@ -264,7 +316,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     case SonarPing(robotRelativeDirectionRad: Double) =>
       val newTimeMillis = System.currentTimeMillis()
       val newRobotPosition: RobotPosition =
-        moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
+        moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
 
       sender ! SonarPong(
         maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
@@ -275,14 +327,14 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         sendExecuteLine(execLine)
       }
       context.become(
-        running(timeMillis, robotState, robotPosition, recentLines.enqueue(execLine), robotProgram)
+        running(lastDriveChangeTimeMillis, robotState, robotPosition, recentLines.enqueue(execLine), robotProgram)
       )
 
     case UpdateView =>
       if (robotProgram.runningTimeMillis < 1000 || robotProgram.cpuTimePercent < 0.05) {
         val newTimeMillis = System.currentTimeMillis()
         val newRobotPosition: RobotPosition =
-          moveRobot(timeMillis, newTimeMillis, robotState, robotPosition)
+          moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
         val obstructed: Boolean = maze.obstructionsInContact(newRobotPosition).nonEmpty
         lazy val finished: Boolean = maze.hasFinished(newRobotPosition)
 
@@ -293,7 +345,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
               val adjNewRobotPosition: RobotPosition = Iterator.
                 from(start = stepMillis, step = stepMillis).
                 map { backupMillis: Int =>
-                  moveRobot(timeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
+                  moveRobot(lastDriveChangeTimeMillis, newTimeMillis - backupMillis, robotState, robotPosition)
                 }.
                 find { maze.obstructionsInContact(_).isEmpty }.
                 get
@@ -338,7 +390,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
         case None =>
       }
       context.become(
-        running(timeMillis, robotState, robotPosition, newRecentLines, robotProgram)
+        running(lastDriveChangeTimeMillis, robotState, robotPosition, newRecentLines, robotProgram)
       )
 
     case RobotProgramExited =>

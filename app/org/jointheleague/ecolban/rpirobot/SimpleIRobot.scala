@@ -31,6 +31,7 @@ class SimpleIRobot extends IRobotInterface {
   private implicit val AskTimeout: Timeout = 1.second
 
   private var angleDegrees: Int = 0
+  private var distanceMm: Int = 0
 
   private def afterCommandPause(): Unit = Thread.sleep(AfterCommandPauseTimeMillis)
 
@@ -97,6 +98,16 @@ class SimpleIRobot extends IRobotInterface {
   // Sensors
   override def readSensors(sensorId: Int): Unit = {
     sensorId match {
+      case SENSORS_DISTANCE =>
+        for {
+          SimulationRunActor.DistanceSensorValue(distMmOpt: Option[Double]) <-
+            simulationRun ? SimulationRunActor.ReadDistanceSensor
+        } {
+          for (distMm: Double <- distMmOpt) {
+            distanceMm = (distMm + 0.5).toInt
+          }
+        }
+
       case SENSORS_ANGLE =>
         for {
           SimulationRunActor.AngleSensorValue(angleRadOpt: Option[Double]) <-
@@ -111,6 +122,8 @@ class SimpleIRobot extends IRobotInterface {
     }
     afterCommandPause()
   }
+
+  override def getDistance: Int = distanceMm
 
   override def getAngle: Int = angleDegrees
 
@@ -219,8 +232,6 @@ class SimpleIRobot extends IRobotInterface {
   override def getChargingState: Int = ???
 
   override def isInternalChargerAvailable: Boolean = ???
-
-  override def getDistance: Int = ???
 
   override def full(): Unit = ???
 

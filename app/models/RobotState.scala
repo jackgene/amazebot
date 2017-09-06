@@ -22,5 +22,16 @@ case class RobotState(
    *
    * Absence of a value means the sensor has never been read.
    */
-  orientationRadOnSensorRead: Option[Double] = None
+  orientationRadOnSensorRead: Option[Double] = None,
+
+  /**
+    * State of the distance sensor.
+    *
+    * Used to calculate the distance sensor value:
+    * Either an optional wall time in ms when the sensor was read,
+    * or the distance recorded until the last drive command.
+    *
+    * Left(None) means the sensor has never been read.
+    */
+  distanceSensorState: Either[Option[Long],Double] = Left(None)
 )
