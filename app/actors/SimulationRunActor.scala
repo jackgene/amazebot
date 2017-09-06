@@ -22,7 +22,28 @@ import scala.math.{cos, sin}
 
 object SimulationRunActor {
   // Incoming messages
-  case class Drive(velocityMmS: Double, radiusMm: Option[Double])
+  case class Drive(velocityMmS: Double, radiusMm: Option[Double]) {
+    /**
+      * Max newVelocityMmS is 500 per spec. However, given that each
+      * wheel has a 500mm/s max, we know this is not possible for
+      * radius < ∞. Limit to the actual max.
+      *
+      * Actual max is calculated by finding the angular velocity and
+      * limiting the outer wheel speed to 500mm/s.
+      */
+    def adjustedVelocityMmS: Double = {
+      radiusMm match {
+        case None | Some(0.0) => velocityMmS
+
+        case Some(r: Double) =>
+          val rAbs: Double = math.abs(r)
+          val vAbsMax: Double = 500.0 / (rAbs + WheelDisplacementMmPerRadian) * rAbs
+
+          if (velocityMmS > 0) math.min(velocityMmS, vAbsMax)
+          else math.max(velocityMmS, -vAbsMax)
+      }
+    }
+  }
   case object ReadAngleSensor
   case class SonarPing(robotRelativeDirectionRad: Double)
 
@@ -206,14 +227,14 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       timeMillis: Long, robotState: RobotState, robotPosition: RobotPosition,
       recentLines: Queue[ExecuteLine], robotProgram: RobotProgramStats):
       Receive = {
-    case Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
-        if newVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
+    case drive @ Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
+        if drive.adjustedVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
       val newTimeMillis = System.currentTimeMillis()
 
       context.become(
         running(
           newTimeMillis,
-          robotState.copy(velocityMmS = newVelocityMmS, radiusMm = newRadiusMm),
+          robotState.copy(velocityMmS = drive.adjustedVelocityMmS, radiusMm = newRadiusMm),
           moveRobot(timeMillis, newTimeMillis, robotState, robotPosition),
           recentLines,
           robotProgram
