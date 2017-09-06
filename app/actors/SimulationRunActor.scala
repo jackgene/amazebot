@@ -155,6 +155,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
             */
           override def interrupt(): Unit = {
             super.interrupt()
+            Thread.sleep(1)
             //noinspection ScalaDeprecation
             stop()
           }
@@ -210,6 +211,12 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
     }
   }
 
+  private def distance(durationMillis: Long, robotState: RobotState): Double =
+    robotState.radiusMm match {
+      case Some(0.0) => 0.0
+      case _ => robotState.velocityMmS * durationMillis / 1000.0
+    }
+
   private def sendExecuteLine(execLine: ExecuteLine): Unit = {
     webSocketOut ! Json.toJson(execLine)
     context.system.scheduler.scheduleOnce(10.millis, self, UpdateExecuteLine)
@@ -245,15 +252,11 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
               // First drive changes since distance read
               case Left(Some(lastReadTimeMillis: Long)) =>
-                Right(
-                  robotState.velocityMmS * (newDriveChangeTimeMillis - lastReadTimeMillis) / 1000.0
-                )
+                Right(distance(newDriveChangeTimeMillis - lastReadTimeMillis, robotState))
 
               // There have been other drive changes since last read
               case Right(distToLastDriveChange: Double) =>
-                Right(
-                  distToLastDriveChange + robotState.velocityMmS * (newDriveChangeTimeMillis - lastDriveChangeTimeMillis) / 1000.0
-                )
+                Right(distToLastDriveChange + distance(newDriveChangeTimeMillis - lastDriveChangeTimeMillis, robotState))
             }
           ),
           moveRobot(lastDriveChangeTimeMillis, newDriveChangeTimeMillis, robotState, robotPosition),
@@ -272,15 +275,11 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
           // There have been no drive changes since last read
           case Left(Some(lastReadTimeMillis: Long)) =>
-            Some(
-              robotState.velocityMmS * (curReadTimeMillis - lastReadTimeMillis) / 1000.0
-            )
+            Some(distance(curReadTimeMillis - lastReadTimeMillis, robotState))
 
           // There have been drive changes since last read
           case Right(distToLastDriveChange: Double) =>
-            Some(
-              distToLastDriveChange + robotState.velocityMmS * (curReadTimeMillis - lastDriveChangeTimeMillis) / 1000.0
-            )
+            Some(distToLastDriveChange + distance(curReadTimeMillis - lastDriveChangeTimeMillis, robotState))
         }
       )
       context.become(
@@ -331,7 +330,11 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case UpdateView =>
-      if (robotProgram.runningTimeMillis < 1000 || robotProgram.cpuTimePercent < 0.05) {
+      if (robotProgram.cpuTimePercent < 0.05 ||
+          // Allow for a bit of a spike during initialization (for Jython, mainly)
+          (robotProgram.runningTimeMillis < 10000 && robotProgram.cpuTimePercent < 0.1) ||
+          (robotProgram.runningTimeMillis < 3333 && robotProgram.cpuTimePercent < 0.5) ||
+          robotProgram.runningTimeMillis < 1000) {
         val newTimeMillis = System.currentTimeMillis()
         val newRobotPosition: RobotPosition =
           moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
@@ -376,7 +379,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
             "Simulation terminated for execessive CPU utilization."
           )
         )
-        log.warning("Terminating simulation on execesive CPU utilization")
+        log.warning(
+          f"Terminating simulation on execesive CPU utilization (${robotProgram.cpuTimePercent * 100}%,.2f%% for ${robotProgram.runningTimeMillis}ms)"
+        )
         gracefulStop(recentLines)
       }
 
@@ -395,8 +400,11 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
 
     case RobotProgramExited =>
       log.info("Simulation completed successfully.")
-      self ! ExecuteLine(0)
-      if (robotState.velocityMmS == 0.0) gracefulStop(recentLines)
+      if (robotState.velocityMmS != 0.0) self ! ExecuteLine(0)
+      else {
+        gracefulStop(recentLines.enqueue(ExecuteLine(0)))
+        if (recentLines.isEmpty) self ! UpdateExecuteLine
+      }
 
     case Status.Failure(cause: Throwable) =>
       log.error(cause, "Simulation terminated abnormally.")
