@@ -1,8 +1,9 @@
-// As before, you have to get the robot to the green circle.
-// However, this time you have to avoid some walls.
+// You have to navigate the robot through more challenging
+// maze now.
 //
-// Write your code in the "go()" method. You may use the
-// "turnLeft()", and "moveForward()" methods.
+// In addition, there is a "turnRight()" method available
+// to you. However "turnRight()" simply calls "turnLeft()"
+// three times. Can you make it better?
 
 import org.jointheleague.ecolban.rpirobot.*;
 
@@ -36,6 +37,16 @@ public class CleverRobot extends IRobotAdapter {
 		Thread.sleep(436);
 		// Stop moving
 		stop();
+	}
+
+	/**
+	 * Turns the robot approximately 90 degrees right.
+	 */
+	void turnRight() throws Exception {
+		// Turn left three times
+		turnLeft();
+		turnLeft();
+		turnLeft();
 	}
 
 	// DON'T CHANGE ANYTHING BELOW THIS LINE

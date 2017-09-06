@@ -1,8 +1,9 @@
-# As before, you have to get the robot to the green circle.
-# However, this time you have to avoid some walls.
+# You have to navigate the robot through more challenging
+# maze now.
 #
-# Write your code at he bottom of the file. You may use the
-# "turn_left()", and "move_forward()" functions.
+# In addition, there is a "turn_right()" function available
+# to you. However "turn_right()" simply calls "turn_left()"
+# three times. Can you make it better?
 
 from time import sleep
 from org.jointheleague.ecolban.rpirobot import SimpleIRobot
@@ -29,6 +30,14 @@ def turn_left():
 	sleep(0.436)
 	# Stop moving
 	robot.stop()
+
+
+def turn_right():
+	"""Turns the robot approximately 90 degrees right."""
+	# Turn left three times
+	turn_left()
+	turn_left()
+	turn_left()
 
 
 move_forward()
