@@ -6,7 +6,7 @@
 import org.jointheleague.ecolban.rpirobot.*;
 
 public class CleverRobot extends IRobotAdapter {
-	public CleverRobot(IRobotInterface iRobot) throws Exception {
+	CleverRobot(IRobotInterface iRobot) throws Exception {
 		super(iRobot);
 
 		// Move forward
