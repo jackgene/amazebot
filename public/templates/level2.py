@@ -1,9 +1,11 @@
 # You have to navigate the robot through more challenging
-# maze now.
+# maze in this level.
 #
-# In addition, there is a "turn_right()" function available
-# to you. However "turn_right()" simply calls "turn_left()"
-# three times. Can you make it better?
+# Also, an additional function is available to you:
+# - turn_right()
+#
+# However "turn_right()" just calls "turn_left()" 3 times.
+# Can you make a better "turn_right()"?
 
 from time import sleep
 from org.jointheleague.ecolban.rpirobot import SimpleIRobot

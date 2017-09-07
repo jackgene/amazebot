@@ -1,8 +1,17 @@
 // As before, you have to get the robot to the green circle.
-// However, this time you have to avoid some walls.
+// However, you will have to navigate the robot around some
+// walls now.
 //
-// Write your code in the "go()" method. You may use the
-// "turnLeft()", and "moveForward()" methods.
+// Two methods have been provided for you:
+// - turnLeft()
+// - moveForward()
+//
+// To use (or call) a method, just type the method name
+// followed by "()". You can see an example on line 20.
+//
+// Can understand how the provided methods work?
+//
+// Write your code in the "go()" method on line 22.
 
 import org.jointheleague.ecolban.rpirobot.*;
 

@@ -1,7 +1,18 @@
-# With two extra turns, the maze is a bit more challenging.
+# This is just the same maze as the last level with two
+# extra turns.
 #
-# Also, instead of "turning" left and right, you now "curve"
-# left and right, allowing you to cut closer to the corners.
+# However, the "turn_left()" and "turn_right()" functions
+# have been removed.
+#
+# Instead, you have the following:
+# - curve_left()
+# - curve_right()
+#
+# Which moves the robot in a curve instead of turning
+# in-place. It uses the robot's "drive" method, instead of
+# "driveDirect".
+#
+# Try and understand how the curve functions works.
 
 from time import sleep
 from org.jointheleague.ecolban.rpirobot import SimpleIRobot

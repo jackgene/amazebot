@@ -1,9 +1,11 @@
 // You have to navigate the robot through more challenging
-// maze now.
+// maze in this level.
 //
-// In addition, there is a "turnRight()" method available
-// to you. However "turnRight()" simply calls "turnLeft()"
-// three times. Can you make it better?
+// Also, an additional method is available to you:
+// - turnRight()
+//
+// However "turnRight()" just calls "turnLeft()" 3 times.
+// Can you make a better "turnRight()"?
 
 import org.jointheleague.ecolban.rpirobot.*;
 

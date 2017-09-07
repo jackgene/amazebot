@@ -1,7 +1,18 @@
-// With two extra turns, the maze is a bit more challenging.
+// This is just the same maze as the last level with two
+// extra turns.
 //
-// Also, instead of "turning" left and right, you now "curve"
-// left and right, allowing you to cut closer to the corners.
+// However, the "turnLeft()" and "turnRight()" methods have
+// been removed.
+//
+// Instead, you have the following:
+// - curveLeft()
+// - curveRight()
+//
+// Which moves the robot in a curve instead of turning
+// in-place. It uses the robot's "drive" method, instead of
+// "driveDirect".
+//
+// Try and understand how the curve methods works.
 
 import org.jointheleague.ecolban.rpirobot.*;
 

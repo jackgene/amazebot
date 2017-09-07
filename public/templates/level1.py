@@ -1,8 +1,17 @@
 # As before, you have to get the robot to the green circle.
-# However, this time you have to avoid some walls.
+# However, you will have to navigate the robot around some
+# walls now.
 #
-# Write your code at he bottom of the file. You may use the
-# "turn_left()", and "move_forward()" functions.
+# Two functions have been provided for you:
+# - turn_left()
+# - move_forward()
+#
+# To use (or call) a function, just type the function name
+# followed by "()". You can see an example on line 43.
+#
+# Can understand how the provided functions work?
+#
+# Write your code at he bottom of the file.
 
 from time import sleep
 from org.jointheleague.ecolban.rpirobot import SimpleIRobot
@@ -11,7 +20,7 @@ robot = SimpleIRobot()
 
 
 def move_forward():
-	"""Move the robot forward approximately one 'square'"""
+	"""Move the robot forward approximately one square"""
 	# Move left and right wheels 500mm/s forward
 	robot.driveDirect(500, 500)
 	# Let the robot move for 1.975 seconds
