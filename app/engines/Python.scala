@@ -8,6 +8,7 @@ import org.python.antlr.ast._
 import org.python.antlr.base.expr
 import org.python.antlr.runtime._
 import org.python.core.{BytecodeLoader, imp => PythonCompiler}
+import org.python.util.PythonInterpreter
 
 import scala.io.Source
 import scala.collection.JavaConverters._
@@ -93,18 +94,21 @@ case object Python extends Language {
       }
 
   def makeEntryPointMethod(source: String): Method = {
-    val executedSource: String = instrumentScript(source) match {
+    val scriptToRun: String = instrumentScript(source) match {
       case Success(instrumentedSource) =>
         "from actors.SimulationRunActor import beforeRunningLine as line;" + instrumentedSource
 
       case Failure(_) => source // Just pass the original and have it report error
     }
     val byteCode: Array[Byte] = PythonCompiler.compileSource(
-      "script", new ByteArrayInputStream(executedSource.getBytes("UTF-8")), "script$py"
+      "script", new ByteArrayInputStream(scriptToRun.getBytes("UTF-8")), "script$py"
     )
 
     BytecodeLoader.
       makeClass("script$py", byteCode).
       getMethod("main", classOf[Array[String]])
   }
+
+  // Get Jython warmed up so that it stays within CPU thresholds for the actual run
+  new PythonInterpreter().eval("1")
 }

@@ -330,11 +330,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
       )
 
     case UpdateView =>
-      if (robotProgram.cpuTimePercent < 0.05 ||
-          // Allow for a bit of a spike during initialization (for Jython, mainly)
-          (robotProgram.runningTimeMillis < 10000 && robotProgram.cpuTimePercent < 0.1) ||
-          (robotProgram.runningTimeMillis < 3333 && robotProgram.cpuTimePercent < 0.5) ||
-          robotProgram.runningTimeMillis < 1000) {
+      if (robotProgram.cpuTimePercent < 0.05 || robotProgram.runningTimeMillis < 1000) {
         val newTimeMillis = System.currentTimeMillis()
         val newRobotPosition: RobotPosition =
           moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
