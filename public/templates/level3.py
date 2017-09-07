@@ -21,11 +21,11 @@ robot = SimpleIRobot()
 
 
 def move_forward():
-	"""Move the robot forward approximately one 'square'"""
+	"""Move the robot forward approximately one square"""
 	# Move left and right wheels 500mm/s forward
 	robot.driveDirect(500, 500)
-	# Let the robot move for 1.975 seconds
-	sleep(1.975)
+	# Let the robot move for 1.642 seconds
+	sleep(1.642)
 	# Stop moving
 	robot.stop()
 
@@ -43,7 +43,6 @@ def curve_left():
 
 def curve_right():
 	"""Move the robot approximately 90 degrees right in a curve."""
-	# Turn left three times
 	# Move robot 500mm/s forward,
 	# with a radius of 833mm (1 square) to the right
 	robot.drive(500, -833);

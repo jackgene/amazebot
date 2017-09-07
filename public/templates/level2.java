@@ -17,7 +17,7 @@ public class CleverRobot extends IRobotAdapter {
 	}
 
 	/**
-	 * Move the robot forward approximately one "square".
+	 * Move the robot forward approximately one square.
 	 */
 	void moveForward() throws Exception {
 		// Move left and right wheels 500mm/s forward

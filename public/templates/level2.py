@@ -14,7 +14,7 @@ robot = SimpleIRobot()
 
 
 def move_forward():
-	"""Move the robot forward approximately one 'square'"""
+	"""Move the robot forward approximately one square"""
 	# Move left and right wheels 500mm/s forward
 	robot.driveDirect(500, 500)
 	# Let the robot move for 1.975 seconds
