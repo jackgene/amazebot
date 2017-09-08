@@ -9,6 +9,7 @@ import org.python.antlr.base.expr
 import org.python.antlr.runtime._
 import org.python.core.{BytecodeLoader, imp => PythonCompiler}
 import org.python.util.PythonInterpreter
+import play.api.Logger
 
 import scala.io.Source
 import scala.collection.JavaConverters._
@@ -94,6 +95,7 @@ case object Python extends Language {
       }
 
   def makeEntryPointMethod(source: String): Method = {
+    Logger.info("Compiling Python source to byte code")
     val scriptToRun: String = instrumentScript(source) match {
       case Success(instrumentedSource) =>
         "from actors.SimulationRunActor import beforeRunningLine as line;" + instrumentedSource
@@ -109,9 +111,12 @@ case object Python extends Language {
       getMethod("main", classOf[Array[String]])
   }
 
-  // Get Jython warmed up so that it stays within CPU thresholds for the actual run
+  // Get Jython warmed up so that it stays within CPU thresholds for actual runs
+  Logger.info("Warming up Jython")
   new PythonInterpreter().exec(
-    """from org.jointheleague.ecolban.rpirobot import SimpleIRobot
+    """from time import sleep
+      |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
+      |
       |robot = SimpleIRobot()
-      |robot.getAngle()""".stripMargin)
+      |sleep(0.001)""".stripMargin)
 }

@@ -2,7 +2,9 @@ package engines
 
 import java.lang.reflect.Method
 import java.security.{AccessController, PrivilegedAction}
+
 import org.codehaus.janino.{ByteArrayClassLoader, SimpleCompiler}
+import play.api.Logger
 
 /**
   * Support for running Java robot control programs.
@@ -16,6 +18,7 @@ case object Java extends Language {
   System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
 
   def makeEntryPointMethod(javaSource: String): Method = {
+    Logger.info("Compiling Java source to byte code")
     val compiler = new SimpleCompiler() {
       var result: ClassLoader = _
 
