@@ -110,5 +110,8 @@ case object Python extends Language {
   }
 
   // Get Jython warmed up so that it stays within CPU thresholds for the actual run
-  new PythonInterpreter().eval("1")
+  new PythonInterpreter().exec(
+    """from org.jointheleague.ecolban.rpirobot import SimpleIRobot
+      |robot = SimpleIRobot()
+      |robot.getAngle()""".stripMargin)
 }
