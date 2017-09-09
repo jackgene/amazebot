@@ -123,10 +123,10 @@ case object Python extends Language {
             throw ExitTrappedException(status.toInt)
 
           case "KeyboardInterrupt('interrupted sleep',)" =>
-            println("Handling \"KeyboardInterrupt('interrupted sleep',)\"")
             throw new InterruptedException
 
           case _ =>
+            println(s"DEBUGGING: e.value = ${e.value}")
             System.err.println(
               e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
             )
