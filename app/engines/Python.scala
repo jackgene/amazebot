@@ -8,7 +8,7 @@ import org.python.antlr._
 import org.python.antlr.ast._
 import org.python.antlr.base.expr
 import org.python.antlr.runtime._
-import org.python.core.{BytecodeLoader, PyException, imp => PythonCompiler}
+import org.python.core.{BytecodeLoader, Py, PyException, imp => PythonCompiler}
 import org.python.util.PythonInterpreter
 import play.api.Logger
 
@@ -133,9 +133,8 @@ case object Python extends Language {
             throw new ThreadDeath
 
           case _ =>
-//            println(s"DEBUGGING: e.cause = ${e.getCause}")
-//            println(s"DEBUGGING: e.value = ${e.value}")
-            System.err.println(
+            new PyException(
+              Py.None,
               e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
             )
             throw e

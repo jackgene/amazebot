@@ -144,7 +144,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
           setUncaughtExceptionHandler(
             new UncaughtExceptionHandler {
               override def uncaughtException(t: Thread, e: Throwable): Unit = {
-                // No-op -
+                // No-op
               }
             }
           )
@@ -396,11 +396,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
     case UpdateExecuteLine =>
       val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
 
-      newRecentLines.dequeueOption match {
-        case Some((execLine: ExecuteLine, _)) =>
-          sendExecuteLine(execLine)
-
-        case None =>
+      for ((execLine: ExecuteLine, _) <- newRecentLines.dequeueOption) {
+        sendExecuteLine(execLine)
       }
       context.become(
         running(lastDriveChangeTimeMillis, robotState, robotPosition, newRecentLines, robotProgram)
@@ -471,8 +468,13 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
           true
         )
       )
-      robotControlScript()
-    }.flatMap {
+      // Handle fatal errors
+      try {
+        robotControlScript()
+      } catch {
+        case t: Throwable => Failure(t.getCause)
+      }
+    } flatMap {
       case Success(()) => Future.successful(RobotProgramExited)
       case Failure(t: Throwable) => Future.failed(t)
     } recover {
