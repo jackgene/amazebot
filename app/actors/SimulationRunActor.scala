@@ -470,7 +470,13 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
           System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
         RobotProgramExited
 
-      case _: InterruptedException => ()
+      case unhandled: InterruptedException => // No-op
+
+      case unhandled: ThreadDeath => // No-op
+
+      case other: Throwable =>
+        other.printStackTrace()
+        throw other
     }
   } pipeTo context.self
 }

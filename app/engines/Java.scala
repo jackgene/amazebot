@@ -70,18 +70,9 @@ case object Java extends Language {
     () => Try[Unit] {
       main.invoke(null, Array[String]())
     }.recover {
-      case e: InvocationTargetException =>
-        e.getCause match {
-          case unhandled: ExitTrappedException =>
-            throw unhandled
-
-          case unhandled: InterruptedException =>
-            throw unhandled
-
-          case other: Throwable =>
-            other.printStackTrace()
-            throw other
-        }
+      case e: InvocationTargetException => e.getCause match {
+        case cause: Throwable => throw cause
+      }
     }
   }
 }

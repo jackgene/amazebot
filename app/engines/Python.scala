@@ -1,11 +1,14 @@
 package engines
 
+import java.io.ByteArrayInputStream
+import java.lang.reflect.{InvocationTargetException, Method}
+
 import exceptions.ExitTrappedException
 import org.python.antlr._
 import org.python.antlr.ast._
 import org.python.antlr.base.expr
 import org.python.antlr.runtime._
-import org.python.core.PyException
+import org.python.core.{BytecodeLoader, PyException, imp => PythonCompiler}
 import org.python.util.PythonInterpreter
 import play.api.Logger
 
@@ -103,36 +106,40 @@ case object Python extends Language {
 
       case Failure(_) => source // Just pass the original and have it report error
     }
+    val byteCode: Array[Byte] = PythonCompiler.compileSource(
+      "script", new ByteArrayInputStream(scriptToRun.getBytes("UTF-8")), "script$py"
+    )
+    val main: Method = BytecodeLoader.
+      makeClass("script$py", byteCode).
+      getMethod("main", classOf[Array[String]])
 
     () => Try[Unit] {
-      new PythonInterpreter().exec(scriptToRun)
+      main.invoke(null, Array[String]())
     }.recover {
-      case pythonErr: PyException if pythonErr.toString.contains("SystemExit: ") =>
-        val ExitCodeExtractor(status) = pythonErr.toString
-        throw ExitTrappedException(status.toInt)
+      case e: InvocationTargetException => e.getCause match {
+        case pythonErr: PyException if pythonErr.toString.contains("SystemExit: ") =>
+          val ExitCodeExtractor(status) = pythonErr.toString
+          throw ExitTrappedException(status.toInt)
 
-      case unhandled: InterruptedException =>
-        throw unhandled
+        case pythonErr: PyException =>
+          System.err.println(
+            pythonErr.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
+          )
+          throw pythonErr
 
-      case pythonErr: PyException =>
-        System.err.println(
-          pythonErr.toString.replaceAll(s"""${instrumentFuncName}\([0-9]+\);""", "")
-        )
-        throw pythonErr
-
-      case other: Throwable =>
-        other.printStackTrace()
-        throw other
+        case other: Throwable => throw other
+      }
     }
   }
 
   // Get Jython warmed up so that it stays within CPU thresholds for actual runs
   Logger.info("Warming up Jython")
+  PythonInterpreter.initialize(null, null, Array("python", "-W", "ignore"))
   new PythonInterpreter().exec(
     """from time import sleep
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
-      |sleep(0.001)""".stripMargin
+      |sleep(0.1)""".stripMargin
   )
 }
