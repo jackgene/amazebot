@@ -1,7 +1,7 @@
 package actors
 
 import java.io.{FilePermission, PrintStream}
-import java.lang.reflect.{InvocationTargetException, Method, ReflectPermission}
+import java.lang.reflect.ReflectPermission
 import java.security.Permission
 import java.util.PropertyPermission
 import java.util.concurrent.locks.LockSupport
@@ -157,7 +157,6 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
             */
           override def interrupt(): Unit = {
             super.interrupt()
-            Thread.sleep(1)
             //noinspection ScalaDeprecation
             stop()
           }
