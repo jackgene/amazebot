@@ -19,6 +19,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.{cos, sin}
+import scala.util.{Failure, Success, Try}
 
 object SimulationRunActor {
   // Incoming messages
@@ -61,8 +62,8 @@ object SimulationRunActor {
   private case object UpdateExecuteLine
   private case object RobotProgramExited
 
-  def props(webSocketOut: ActorRef, maze: Maze, main: Method): Props = {
-    Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, main)
+  def props(webSocketOut: ActorRef, maze: Maze, robotControlScript: () => Try[Unit]): Props = {
+    Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, robotControlScript)
   }
 
   val simulationRunHolder = new ThreadLocal[ActorRef]
@@ -126,7 +127,8 @@ object SimulationRunActor {
     simulationRunHolder.get ! ExecuteLine(line)
   }
 }
-class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) extends Actor with ActorLogging {
+class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript: () => Try[Unit])
+    extends Actor with ActorLogging {
   import SimulationRunActor._
   import context.dispatcher
   import models.ViewUpdateInstructions._
@@ -459,20 +461,17 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, main: Method) exten
           true
         )
       )
-      main.invoke(null, Array[String]())
-      RobotProgramExited
+      robotControlScript()
+    }.flatMap {
+      case Success(()) => Future.successful(RobotProgramExited)
+      case Failure(t: Throwable) => Future.failed(t)
     } recover {
-      case e: InvocationTargetException =>
-        e.getCause match {
-          case exitTrapped @ ExitTrappedException(status: Int) =>
-            if (status != 0)
-              System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
-            RobotProgramExited
+      case ExitTrappedException(status: Int) =>
+        if (status != 0)
+          System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
+        RobotProgramExited
 
-          case other: Throwable =>
-            other.printStackTrace()
-            throw other
-        }
+      case _: InterruptedException => ()
     }
   } pipeTo context.self
 }

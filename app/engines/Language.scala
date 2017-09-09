@@ -5,6 +5,8 @@ import java.security.{AccessController, PrivilegedAction}
 
 import org.objectweb.asm._
 
+import scala.util.Try
+
 /**
   * A supported language.
   */
@@ -133,5 +135,5 @@ object Language {
   }
 }
 trait Language {
-  def makeEntryPointMethod(source: String): Method
+  def makeRobotControlScript(source: String): () => Try[Unit]
 }

@@ -1,19 +1,17 @@
 package engines
 
-import java.io.ByteArrayInputStream
-import java.lang.reflect.Method
-
+import exceptions.ExitTrappedException
 import org.python.antlr._
 import org.python.antlr.ast._
 import org.python.antlr.base.expr
 import org.python.antlr.runtime._
-import org.python.core.{BytecodeLoader, imp => PythonCompiler}
+import org.python.core.PyException
 import org.python.util.PythonInterpreter
 import play.api.Logger
 
-import scala.io.Source
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
+import scala.io.Source
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Support for running Python robot control programs.
@@ -21,8 +19,10 @@ import scala.util.{Failure, Success, Try}
 case object Python extends Language {
   val IndentLineExtractor = """(\s*)(\w.*)""".r
   val ElseExtractor = """(else\s*:\s*|)(.*)""".r
+  val ExitCodeExtractor = """(?s).*SystemExit: ([0-9]+)\n""".r
 
-  private case class InstrumentingVisitor(line: Int, source: String) extends VisitorBase[String] {
+  private case class InstrumentingVisitor(line: Int, source: String, instrumentFuncName: String)
+      extends VisitorBase[String] {
     private def visitAll(nodes: java.util.List[_ <: PythonTree], sep: String): String =
       nodes.asScala.map(_.accept(this)).mkString(";")
 
@@ -51,7 +51,7 @@ case object Python extends Language {
 
     // Default - Lines are instrumented
     override def unhandled_node(node: PythonTree): String =
-      s"line(${line});${source.slice(node.getCharStartIndex, node.getCharStopIndex)}"
+      s"${instrumentFuncName}(${line});${source.slice(node.getCharStartIndex, node.getCharStopIndex)}"
 
     override def visitModule(node: Module): String = {
       if (node.getChildCount == 0) ""
@@ -67,20 +67,20 @@ case object Python extends Language {
     }
   }
 
-  private def instrumentLine(num: Int, source: String): Try[String] = Try {
+  private def instrumentLine(num: Int, source: String, instrumentFuncName: String): Try[String] = Try {
     val parser = new BaseParser(new ANTLRStringStream(source), null, "UTF-8")
 
-    parser.parseModule().accept(InstrumentingVisitor(num, source))
+    parser.parseModule().accept(InstrumentingVisitor(num, source, instrumentFuncName))
   } recover {
     case _: Throwable => source
   }
 
-  def instrumentScript(source: String): Try[String] =
+  private def instrumentScript(source: String, instrumentFuncName: String): Try[String] =
     Source.fromString(source).getLines.
       zipWithIndex.
       map {
         case (IndentLineExtractor(indent, ElseExtractor(elseClause, sentence)), idx: Int) =>
-          instrumentLine(idx + 1, sentence).map { instrumentedSentence: String =>
+          instrumentLine(idx + 1, sentence, instrumentFuncName).map { instrumentedSentence: String =>
             s"${indent}${elseClause}${instrumentedSentence}"
           }
 
@@ -92,23 +92,39 @@ case object Python extends Language {
           firstLine: String <- firstLineTry
           secondLine: String <- secondLineTry
         } yield firstLine + "\n" + secondLine
-      }
+      }.
+      map(s"from actors.SimulationRunActor import beforeRunningLine as ${instrumentFuncName};" + _)
 
-  def makeEntryPointMethod(source: String): Method = {
+  def makeRobotControlScript(source: String): () => Try[Unit] = {
     Logger.info("Compiling Python source to byte code")
-    val scriptToRun: String = instrumentScript(source) match {
-      case Success(instrumentedSource) =>
-        "from actors.SimulationRunActor import beforeRunningLine as line;" + instrumentedSource
+    val instrumentFuncName: String = s"__ln${Random.nextInt(Int.MaxValue)}"
+    val scriptToRun: String = instrumentScript(source, instrumentFuncName) match {
+      case Success(instrumentedSource) => instrumentedSource
 
       case Failure(_) => source // Just pass the original and have it report error
     }
-    val byteCode: Array[Byte] = PythonCompiler.compileSource(
-      "script", new ByteArrayInputStream(scriptToRun.getBytes("UTF-8")), "script$py"
-    )
+    println(scriptToRun)
 
-    BytecodeLoader.
-      makeClass("script$py", byteCode).
-      getMethod("main", classOf[Array[String]])
+    () => Try[Unit] {
+      new PythonInterpreter().exec(scriptToRun)
+    }.recover {
+      case pythonErr: PyException if pythonErr.toString.contains("SystemExit: ") =>
+        val ExitCodeExtractor(status) = pythonErr.toString
+        throw ExitTrappedException(status.toInt)
+
+      case unhandled: InterruptedException =>
+        throw unhandled
+
+      case pythonErr: PyException =>
+        System.err.println(
+          pythonErr.toString.replaceAll(s"""${instrumentFuncName}\([0-9]+\);""", "")
+        )
+        throw pythonErr
+
+      case other: Throwable =>
+        other.printStackTrace()
+        throw other
+    }
   }
 
   // Get Jython warmed up so that it stays within CPU thresholds for actual runs
@@ -118,5 +134,6 @@ case object Python extends Language {
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
-      |sleep(0.001)""".stripMargin)
+      |sleep(0.001)""".stripMargin
+  )
 }

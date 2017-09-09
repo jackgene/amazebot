@@ -1,7 +1,6 @@
 package actors
 
 import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
-import java.lang.reflect.Method
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import engines.{Java, Language, Python}
@@ -9,6 +8,8 @@ import models.Maze.Wall
 import models._
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, JsValue, Json}
+
+import scala.util.Try
 
 /**
   * Maintains state for a single simulation session (page load).
@@ -80,7 +81,7 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
           case "java" => Java
           case "py" => Python
         }
-        val entryPoint: Method = language.makeEntryPointMethod(source)
+        val robotControlScript: () => Try[Unit] = language.makeRobotControlScript(source)
 
         // Re-initialize robot position
         webSocketOut ! Json.toJson(
@@ -99,7 +100,7 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
           receive(
             Some(
               context.actorOf(
-                SimulationRunActor.props(webSocketOut, maze, entryPoint),
+                SimulationRunActor.props(webSocketOut, maze, robotControlScript),
                 s"run-${nextRun}"
               )
             ),

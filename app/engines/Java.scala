@@ -1,10 +1,13 @@
 package engines
 
-import java.lang.reflect.Method
+import java.lang.reflect.{InvocationTargetException, Method}
 import java.security.{AccessController, PrivilegedAction}
 
+import exceptions.ExitTrappedException
 import org.codehaus.janino.{ByteArrayClassLoader, SimpleCompiler}
 import play.api.Logger
+
+import scala.util.Try
 
 /**
   * Support for running Java robot control programs.
@@ -17,7 +20,7 @@ case object Java extends Language {
 
   System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
 
-  def makeEntryPointMethod(javaSource: String): Method = {
+  override def makeRobotControlScript(javaSource: String): () => Try[Unit] = {
     Logger.info("Compiling Java source to byte code")
     val compiler = new SimpleCompiler() {
       var result: ClassLoader = _
@@ -54,13 +57,31 @@ case object Java extends Language {
     }
     val ClassNameExtractor(className: String) = javaSource
 
-    try {
-      compiler.getClassLoader.
-        loadClass(s"${packageName}${className}").
-        getMethod("main", classOf[Array[String]])
-    } catch {
-      case e: VerifyError =>
-        throw new RuntimeException(e.getMessage)
+    val main: Method =
+      try {
+        compiler.getClassLoader.
+          loadClass(s"${packageName}${className}").
+          getMethod("main", classOf[Array[String]])
+      } catch {
+        case e: VerifyError =>
+          throw new RuntimeException(e.getMessage)
+      }
+
+    () => Try[Unit] {
+      main.invoke(null, Array[String]())
+    }.recover {
+      case e: InvocationTargetException =>
+        e.getCause match {
+          case unhandled: ExitTrappedException =>
+            throw unhandled
+
+          case unhandled: InterruptedException =>
+            throw unhandled
+
+          case other: Throwable =>
+            other.printStackTrace()
+            throw other
+        }
     }
   }
 }
