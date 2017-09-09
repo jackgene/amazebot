@@ -167,7 +167,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
             */
           override def interrupt(): Unit = {
             super.interrupt()
-            Thread.sleep(1) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
+            Thread.sleep(10) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
             //noinspection ScalaDeprecation
             stop()
           }
