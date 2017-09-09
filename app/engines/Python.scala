@@ -22,7 +22,7 @@ import scala.util.{Failure, Random, Success, Try}
 case object Python extends Language {
   val IndentLineExtractor = """(\s*)(\w.*)""".r
   val ElseExtractor = """(else\s*:\s*|)(.*)""".r
-  val ExitCodeExtractor = """(?s).*SystemExit: ([0-9]+)\n""".r
+  val ExitCodeExtractor = """SystemExit\\(([0-9]+),\\)""".r
 
   private case class InstrumentingVisitor(line: Int, source: String, instrumentFuncName: String)
       extends VisitorBase[String] {
@@ -117,18 +117,21 @@ case object Python extends Language {
       main.invoke(null, Array[String]())
     }.recover {
       case e: InvocationTargetException => e.getCause match {
-        case pythonErr: PyException if pythonErr.toString.contains("SystemExit: ") =>
-          val ExitCodeExtractor(status) = pythonErr.toString
-          throw ExitTrappedException(status.toInt)
+        // Python exception
+        case e: PyException => e.value.toString match {
+          case ExitCodeExtractor(status) =>
+            throw ExitTrappedException(status.toInt)
 
-        case pythonErr: PyException =>
-          System.err.println(s"DEBUGGING: cause: ${pythonErr.getCause}")
-          System.err.println(s"DEBUGGING: type: ${pythonErr.`type`}")
-          System.err.println(s"DEBUGGING: value: ${pythonErr.value}")
-          System.err.println(
-            pythonErr.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
-          )
-          throw pythonErr
+          case "KeyboardInterrupt('interrupted sleep',)" =>
+            println("Handling \"KeyboardInterrupt('interrupted sleep',)\"")
+            throw new InterruptedException
+
+          case _ =>
+            System.err.println(
+              e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
+            )
+            throw e
+        }
 
         case other: Throwable => throw other
       }
