@@ -96,7 +96,7 @@ case object Python extends Language {
           secondLine: String <- secondLineTry
         } yield firstLine + "\n" + secondLine
       }.
-      map(s"from actors.SimulationRunActor import beforeRunningLine as ${instrumentFuncName};" + _)
+      map(s"import warnings; warnings.filterwarnings('ignore'); from actors.SimulationRunActor import beforeRunningLine as ${instrumentFuncName};" + _)
 
   def makeRobotControlScript(source: String): () => Try[Unit] = {
     Logger.info("Compiling Python source to byte code")
@@ -117,7 +117,11 @@ case object Python extends Language {
       main.invoke(null, Array[String]())
     }.recover {
       case e: InvocationTargetException => e.getCause match {
-        // Python exception
+        // Python exceptions with cause (typically from Java code?)
+        case e: PyException if e.getCause != null =>
+          throw e.getCause
+
+        // Normal Python exceptions
         case e: PyException => e.value.toString match {
           case ExitCodeExtractor(status) =>
             throw ExitTrappedException(status.toInt)
@@ -126,12 +130,11 @@ case object Python extends Language {
             throw new InterruptedException
 
           case "java.lang.ThreadDeath" =>
-            println(s"DEBUGGING: e.cause = ${e.getCause}")
             throw new ThreadDeath
 
           case _ =>
-            println(s"DEBUGGING: e.cause = ${e.getCause}")
-            println(s"DEBUGGING: e.value = ${e.value}")
+//            println(s"DEBUGGING: e.cause = ${e.getCause}")
+//            println(s"DEBUGGING: e.value = ${e.value}")
             System.err.println(
               e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
             )
