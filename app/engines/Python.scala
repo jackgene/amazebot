@@ -122,6 +122,9 @@ case object Python extends Language {
           throw ExitTrappedException(status.toInt)
 
         case pythonErr: PyException =>
+          System.err.println(s"DEBUGGING: cause: ${pythonErr.getCause}")
+          System.err.println(s"DEBUGGING: type: ${pythonErr.`type`}")
+          System.err.println(s"DEBUGGING: value: ${pythonErr.value}")
           System.err.println(
             pythonErr.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
           )
