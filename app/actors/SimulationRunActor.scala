@@ -1,6 +1,7 @@
 package actors
 
 import java.io.{FilePermission, PrintStream}
+import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.ReflectPermission
 import java.security.Permission
 import java.util.PropertyPermission
@@ -138,6 +139,15 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       override def newThread(r: Runnable): Thread = {
         new Thread(r) {
           setPriority(Thread.MIN_PRIORITY)
+          // Needed because the sleep between interrupt and stop sometimes results
+          // in an uncaught InterruptedException
+          setUncaughtExceptionHandler(
+            new UncaughtExceptionHandler {
+              override def uncaughtException(t: Thread, e: Throwable): Unit = {
+                // No-op -
+              }
+            }
+          )
           context.become(
             running(
               System.currentTimeMillis,
@@ -157,6 +167,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
             */
           override def interrupt(): Unit = {
             super.interrupt()
+            Thread.sleep(1) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
             //noinspection ScalaDeprecation
             stop()
           }
