@@ -122,10 +122,14 @@ case object Python extends Language {
           case ExitCodeExtractor(status) =>
             throw ExitTrappedException(status.toInt)
 
-          case "KeyboardInterrupt('interrupted sleep',)" =>
+          case "KeyboardInterrupt('interrupted sleep',)" | "java.lang.ClassCastException: java.lang.InterruptedException cannot be cast to java.lang.ClassNotFoundException" =>
             throw new InterruptedException
 
+          case "java.lang.ThreadDeath" =>
+            throw new ThreadDeath
+
           case _ =>
+            println(s"DEBUGGING: e.cause = ${e.getCause}")
             println(s"DEBUGGING: e.value = ${e.value}")
             System.err.println(
               e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
