@@ -130,6 +130,8 @@ case object Python extends Language {
             throw new ThreadDeath
 
           case _ =>
+            println(s"DEBUGGING: e.cause = ${e.getCause}")
+            println(s"DEBUGGING: e.value = ${e.value}")
             System.err.println(
               e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
             )
