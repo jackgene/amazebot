@@ -103,7 +103,6 @@ case object Python extends Language {
 
       case Failure(_) => source // Just pass the original and have it report error
     }
-    println(scriptToRun)
 
     () => Try[Unit] {
       new PythonInterpreter().exec(scriptToRun)
