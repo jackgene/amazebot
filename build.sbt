@@ -11,10 +11,32 @@ libraryDependencies ++= Seq(
   "org.codehaus.janino" % "janino" % "3.0.7",
   "org.ow2.asm" % "asm-debug-all" % "5.2",
   "org.python" % "jython-standalone" % "2.7.1",
-  "org.webjars.bower" % "angular-cookies" % "1.6.5",
-  "org.webjars.bower" % "angular-ui-codemirror" % "0.3.0",
-  "org.webjars.bower" % "angular-websocket" % "2.0.0",
   ws
 )
 
-libraryDependencies <+= scalaVersion("org.scala-lang" % "scala-compiler" % _ )
+libraryDependencies += scalaVersion("org.scala-lang" % "scala-compiler" % _ ).value
+
+lazy val elmMake = taskKey[Unit]("elm-make")
+
+elmMake := {
+  Seq(
+    "bash", "-c",
+    "elm-make app/assets/javascripts/Main.elm " +
+    "--output public/javascripts/main.js " +
+    "--yes --warn"
+  ).! match {
+    case 0 =>
+      streams.value.log.success("elm-make completed.")
+
+    case 127 =>
+      streams.value.log.warn("elm-make not found in PATH. Skipping Elm build.")
+
+    case status =>
+      throw new IllegalArgumentException(
+        s"elm-make failed with non-zero exit ${status}"
+      )
+  }
+}
+
+(compile in Compile) := (compile in Compile).dependsOn(elmMake).value
+
