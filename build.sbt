@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += scalaVersion("org.scala-lang" % "scala-compiler" % _ ).value
 
-lazy val elmMake = taskKey[Unit]("elm-make")
+lazy val elmMake = taskKey[Seq[File]]("elm-make")
 
 elmMake := {
   Seq(
@@ -27,9 +27,11 @@ elmMake := {
   ).! match {
     case 0 =>
       streams.value.log.success("elm-make completed.")
+      Seq(new File("public/javascripts/main.js"))
 
     case 127 =>
       streams.value.log.warn("elm-make not found in PATH. Skipping Elm build.")
+      Nil
 
     case status =>
       throw new IllegalArgumentException(
@@ -38,5 +40,5 @@ elmMake := {
   }
 }
 
-(compile in Compile) := (compile in Compile).dependsOn(elmMake).value
+sourceGenerators in Assets += elmMake.taskValue
 

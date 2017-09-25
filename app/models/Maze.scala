@@ -57,11 +57,11 @@ object Maze {
     left = topLeft.leftMm
   ) {
     import Wall._
-    assert(height >= MinThicknessMm, s"wall height must be at least ${MinThicknessMm}mm")
-    assert(width >= MinThicknessMm, s"wall width must be at least ${MinThicknessMm}mm")
+    assert(heightMm >= MinThicknessMm, s"wall height must be at least ${MinThicknessMm}mm")
+    assert(widthMm >= MinThicknessMm, s"wall width must be at least ${MinThicknessMm}mm")
 
-    lazy val height: Int = bottomRight.topMm - topLeft.topMm
-    lazy val width: Int = bottomRight.leftMm - topLeft.leftMm
+    lazy val heightMm: Int = bottomRight.topMm - topLeft.topMm
+    lazy val widthMm: Int = bottomRight.leftMm - topLeft.leftMm
   }
   // Virtual obstructions to faciliate maths
   private case class RobotEdges(position: RobotPosition) extends Obstruction(

@@ -22,7 +22,7 @@ object ViewUpdateInstructions {
     (JsPath \ "w").write[Int]
   ) {
     wall: Maze.Wall =>
-      (wall.topLeft.topMm, wall.topLeft.leftMm, wall.height, wall.width)
+      (wall.topLeft.topMm, wall.topLeft.leftMm, wall.heightMm, wall.widthMm)
   }
 
   implicit val drawMazeWrites: Writes[DrawMaze] = (
