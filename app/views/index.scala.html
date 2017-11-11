@@ -28,6 +28,7 @@
             <div id="finish" ng-style="finish">move robot here</div>
             <div id="robot" ng-style="robot"></div>
             <div class="wall" ng-repeat="wall in walls" ng-style="wall"></div>
+            <div id="timer">{{elapsedTimeMillis | date:'mm:ss.sss':'UTC' | limitTo:7}}</div>
         </div>
     </div>
     <div id="console">

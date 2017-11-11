@@ -1,8 +1,8 @@
 var aMazeBotApp = angular.module(
   'aMazeBotApp', ['ngCookies', 'ngWebSocket', 'ui.codemirror']
 );
-aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $log) {
-  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine;
+aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, $websocket, $window, $timeout, $interval, $log) {
+  var robotRadiusMm = 173.5, pxPerMm = 0.1, dataStream, lastExecutedLine, startTimeMillis = 0, timerPromise = null;
 
   function saveSessionState() {
     var cookieExpires = new Date(new Date().setFullYear(new Date().getFullYear() + 1));
@@ -80,6 +80,7 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
           },
           10
         );
+        startTimeMillis = new Date().getTime();
         break;
 
       case 'm':
@@ -105,6 +106,10 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
           500,
           false
         );
+        if (timerPromise !== null) {
+          $interval.cancel(timerPromise);
+          timerPromise = null;
+        }
         break;
 
       case 'log':
@@ -170,6 +175,7 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
   };
   $scope.walls = [
   ];
+  $scope.elapsedTimeMillis = startTimeMillis;
 
   $scope.codemirrorLoaded = function(editor) {
     editor.setOption('lineWrapping', true);
@@ -190,6 +196,12 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
       source: $scope.source
     });
     saveSessionState();
+    timerPromise = $interval(
+      function() {
+        $scope.elapsedTimeMillis = new Date().getTime() - startTimeMillis;
+      },
+      100
+    );
   };
 
   $scope.changeLanguage = function() {
