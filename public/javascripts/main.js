@@ -44,6 +44,13 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
     )
   }
 
+  function stopTimer() {
+    if (timerPromise !== null) {
+      $interval.cancel(timerPromise);
+      timerPromise = null;
+    }
+  }
+
   function processRobotInstruction(instruction) {
     switch (instruction.c) {
       case 'maze':
@@ -106,10 +113,7 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
           500,
           false
         );
-        if (timerPromise !== null) {
-          $interval.cancel(timerPromise);
-          timerPromise = null;
-        }
+        stopTimer();
         break;
 
       case 'log':
@@ -196,6 +200,7 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
       source: $scope.source
     });
     saveSessionState();
+    stopTimer();
     timerPromise = $interval(
       function() {
         $scope.elapsedTimeMillis = new Date().getTime() - startTimeMillis;
