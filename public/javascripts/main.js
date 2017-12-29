@@ -87,7 +87,6 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
           },
           10
         );
-        startTimeMillis = new Date().getTime();
         break;
 
       case 'm':
@@ -201,6 +200,7 @@ aMazeBotApp.controller('aMazeBotController', function ($scope, $cookies, $http, 
     });
     saveSessionState();
     stopTimer();
+    startTimeMillis = new Date().getTime();
     timerPromise = $interval(
       function() {
         $scope.elapsedTimeMillis = new Date().getTime() - startTimeMillis;
