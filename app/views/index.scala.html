@@ -6,10 +6,34 @@
     <script src="@routes.Assets.versioned("lib/codemirror/mode/python/python.js")" type="text/javascript"></script>
     <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
     <script type="text/javascript">
-      Elm.Main.fullscreen(
+      var app = Elm.Main.fullscreen(
         {
           secure: window.location.protocol === "https:",
           hostPath: window.location.host + window.location.pathname
+        }
+      );
+      app.ports.codeMirrorFromTextArea.subscribe(
+        function(idAndMode) {
+          var [id, mode] = idAndMode;
+          CodeMirror.fromTextArea(
+            document.getElementById(id),
+            {
+              lineWrapping: true,
+              lineNumbers: true,
+              matchBrackets: true,
+              indentUnit: 4,
+              indentWithTabs: true,
+              mode: mode
+            }
+          );
+        }
+      );
+      app.ports.showMessage.subscribe(
+        function(message) {
+          setTimeout(
+            function () { window.alert(message) },
+            500
+          );
         }
       );
     </script>

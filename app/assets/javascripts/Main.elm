@@ -1,7 +1,11 @@
+port module Main exposing (..)
+
 import Html exposing (..)
-import Html.Attributes exposing (class, href, id, style, value)
+import Html.Attributes exposing (class, href, id, selected, style, value)
 import Html.Events exposing (onClick, onInput)
+import Http
 import Json.Decode exposing (decodeString, float, field, int, list, string)
+import Json.Encode as Encode
 import WebSocket
 
 main : Program Request Model Msg
@@ -12,6 +16,23 @@ main =
     , update = update
     , subscriptions = subscriptions
     }
+
+
+loadCodeTemplate : Request -> String -> Cmd Msg
+loadCodeTemplate request language =
+  Http.send
+    ReceiveTemplatedSource
+    (Http.getString ("template." ++ language))
+
+
+webSocketUrl : Request -> String
+webSocketUrl request =
+  (if request.secure then "wss" else "ws") ++ "://" ++ request.hostPath ++ "/simulation"
+
+
+port codeMirrorFromTextArea : (String, String) -> Cmd msg
+port codeMirror
+port showMessage : String -> Cmd msg
 
 
 -- Model
@@ -37,23 +58,49 @@ type alias Maze =
   }
 type alias Model =
   { request : Request
+  , language: String
+  , source: String
   , robotPosition : Maybe RobotPosition
   , maze : Maybe Maze
   , console : List String
   }
 
+
 init : Request -> (Model, Cmd Msg)
 init flags =
-  (Model flags Nothing Nothing [], Cmd.none)
+  let
+    language : String
+    language = "java"
+  in
+    ( Model flags language "" Nothing Nothing []
+    , Cmd.batch
+      [ loadCodeTemplate flags language
+      , codeMirrorFromTextArea ("source", "text/x-java")
+      ]
+    )
 
 
 -- Update
 type Msg
-  = ChangeLanguage String
+  = SelectLanguage String
+  | ChangeSource String
+  | ReceiveTemplatedSource (Result Http.Error String)
   | SaveAndRun
   | ClearConsole
   | ResetCode
   | ServerCommand String
+
+
+saveAndRunEncoder: Model -> Encode.Value
+saveAndRunEncoder model =
+  Encode.object
+    [ ( "lang"
+      , Encode.string model.language
+      )
+    , ( "source"
+      , Encode.string model.source
+      )
+    ]
 
 
 pointJsonDecoder: String -> String -> Json.Decode.Decoder Point
@@ -79,40 +126,87 @@ mazeJsonDecoder =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    ChangeLanguage lang ->
-      ({ model | console = ("Change Language " ++ lang) :: model.console }, Cmd.none)
+    SelectLanguage language ->
+      ( { model | language = language }
+      , loadCodeTemplate model.request language
+      )
+    ReceiveTemplatedSource result ->
+      case result of
+        Ok source ->
+          ( { model | source = source }
+          , Cmd.none
+          )
+        Err errorMsg ->
+          Debug.log ("Error obtaining code template: " ++ (toString errorMsg)) (model, Cmd.none)
+    ChangeSource source ->
+      ( { model | source = source }
+      , Cmd.none
+      )
     SaveAndRun ->
-      ({ model | console = "Save and Run" :: model.console }, Cmd.none)
+      ( model
+      , WebSocket.send (webSocketUrl model.request) (Encode.encode 0 (saveAndRunEncoder model))
+      )
     ResetCode ->
-      ({ model | console = "Reset Code" :: model.console }, Cmd.none)
+      ( { model | console = "Reset Code" :: model.console }
+      , Cmd.none
+      )
     ClearConsole ->
-      ({ model | console = [] }, Cmd.none)
+      ( { model | console = [] }
+      , Cmd.none
+      )
     ServerCommand json ->
+      Debug.log (toString json) (
       case decodeString (field "c" string) json of
         Ok "init" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              ({ model | robotPosition = Just robotPosition }, Cmd.none)
+              ( { model | robotPosition = Just robotPosition }
+              , Cmd.none
+              )
             Err errorMsg ->
               Debug.log errorMsg (model, Cmd.none)
         Ok "maze" ->
           case (decodeString mazeJsonDecoder json) of
             Ok maze ->
-              ({ model | maze = Just maze}, Cmd.none)
+              ( { model | maze = Just maze}
+              , Cmd.none
+              )
+            Err errorMsg ->
+              Debug.log errorMsg (model, Cmd.none)
+        Ok "m" ->
+          case (decodeString robotPositionJsonDecoder json) of
+            Ok robotPosition ->
+              ( { model | robotPosition = Just robotPosition }
+              , Cmd.none
+              )
+            Err errorMsg ->
+              Debug.log errorMsg (model, Cmd.none)
+        Ok "msg" ->
+          case decodeString (field "m" string) json of
+            Ok message ->
+              ( model
+              , showMessage message
+              )
+            Err errorMsg ->
+              Debug.log errorMsg (model, Cmd.none)
+        Ok "log" ->
+          case decodeString (field "m" string) json of
+            Ok message ->
+              ( { model | console = message :: model.console }
+              , Cmd.none
+              )
             Err errorMsg ->
               Debug.log errorMsg (model, Cmd.none)
         Ok _ ->
           Debug.log ("Unhandled command: " ++ json) (model, Cmd.none)
         Err _ ->
           Debug.log ("Error parsing JSON: " ++ json) (model, Cmd.none)
-
+      )
 
 -- Subscriptions
 subscriptions : Model -> Sub Msg
 subscriptions {request} =
-  WebSocket.listen
-    ((if request.secure then "wss" else "ws") ++ "://" ++ request.hostPath ++ "/simulation")
-    ServerCommand
+  WebSocket.listen (webSocketUrl request) ServerCommand
 
 
 -- View
@@ -202,14 +296,19 @@ view model =
         , li [] [a [href "/maze/random"] [text "Random Maze"]]
         ]
     , div [id "input"]
-        [ textarea [] []
+        [ div []
+          [ textarea
+              [id "source", onInput ChangeSource, style [("height", "498px"), ("width", "99%")]]
+              [text model.source]
+          ]
         , br [] []
-        , select [onInput ChangeLanguage]
+        , select
+            [onInput SelectLanguage]
             [ option
-                [value "java"]
+                [value "java", selected (model.language /= "python")]
                 [text "Java 8"]
             , option
-                [value "py"]
+                [value "py", selected (model.language == "python")]
                 [text "Python 2.7"]
             ]
         , button [onClick SaveAndRun] [text "Save & Run"]
