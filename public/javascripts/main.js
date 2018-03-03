@@ -13531,13 +13531,24 @@ var _elm_lang$websocket$WebSocket$onSelfMsg = F3(
 	});
 _elm_lang$core$Native_Platform.effectManagers['WebSocket'] = {pkg: 'elm-lang/websocket', init: _elm_lang$websocket$WebSocket$init, onEffects: _elm_lang$websocket$WebSocket$onEffects, onSelfMsg: _elm_lang$websocket$WebSocket$onSelfMsg, tag: 'fx', cmdMap: _elm_lang$websocket$WebSocket$cmdMap, subMap: _elm_lang$websocket$WebSocket$subMap};
 
-var _jackgene$amazebot$Main$consoleLineView = function (line) {
+var _jackgene$amazebot$Main$consoleMessageView = function (message) {
 	return A2(
 		_elm_lang$html$Html$pre,
-		{ctor: '[]'},
+		function () {
+			var _p0 = message.messageType;
+			if (_p0.ctor === 'StdOut') {
+				return {ctor: '[]'};
+			} else {
+				return {
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('stderr'),
+					_1: {ctor: '[]'}
+				};
+			}
+		}(),
 		{
 			ctor: '::',
-			_0: _elm_lang$html$Html$text(line),
+			_0: _elm_lang$html$Html$text(message.text),
 			_1: {ctor: '[]'}
 		});
 };
@@ -13609,9 +13620,9 @@ var _jackgene$amazebot$Main$wallView = function (wall) {
 };
 var _jackgene$amazebot$Main$finishZoneRadiusMm = 250;
 var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
-	var _p0 = maybeMaze;
-	if (_p0.ctor === 'Just') {
-		var _p2 = _p0._0;
+	var _p1 = maybeMaze;
+	if (_p1.ctor === 'Just') {
+		var _p3 = _p1._0;
 		return {
 			ctor: '::',
 			_0: A2(
@@ -13630,7 +13641,7 @@ var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
 									_1: A2(
 										_elm_lang$core$Basics_ops['++'],
 										_elm_lang$core$Basics$toString(
-											_jackgene$amazebot$Main$mmToPixels(_p2.finish.topMm - _jackgene$amazebot$Main$finishZoneRadiusMm)),
+											_jackgene$amazebot$Main$mmToPixels(_p3.finish.topMm - _jackgene$amazebot$Main$finishZoneRadiusMm)),
 										'px')
 								},
 								_1: {
@@ -13641,7 +13652,7 @@ var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
 										_1: A2(
 											_elm_lang$core$Basics_ops['++'],
 											_elm_lang$core$Basics$toString(
-												_jackgene$amazebot$Main$mmToPixels(_p2.finish.leftMm - _jackgene$amazebot$Main$finishZoneRadiusMm)),
+												_jackgene$amazebot$Main$mmToPixels(_p3.finish.leftMm - _jackgene$amazebot$Main$finishZoneRadiusMm)),
 											'px')
 									},
 									_1: {ctor: '[]'}
@@ -13656,9 +13667,9 @@ var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
 					_1: {ctor: '[]'}
 				}),
 			_1: function () {
-				var _p1 = _elm_lang$core$List$head(_p2.wallsHistory);
-				if (_p1.ctor === 'Just') {
-					return A2(_elm_lang$core$List$map, _jackgene$amazebot$Main$wallView, _p1._0);
+				var _p2 = _elm_lang$core$List$head(_p3.wallsHistory);
+				if (_p2.ctor === 'Just') {
+					return A2(_elm_lang$core$List$map, _jackgene$amazebot$Main$wallView, _p2._0);
 				} else {
 					return {ctor: '[]'};
 				}
@@ -13670,9 +13681,9 @@ var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
 };
 var _jackgene$amazebot$Main$robotRadiusMm = 173.5;
 var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
-	var _p3 = maybeRobotPosition;
-	if (_p3.ctor === 'Just') {
-		var _p4 = _p3._0;
+	var _p4 = maybeRobotPosition;
+	if (_p4.ctor === 'Just') {
+		var _p5 = _p4._0;
 		return {
 			ctor: '::',
 			_0: A2(
@@ -13691,7 +13702,7 @@ var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
 									_1: A2(
 										_elm_lang$core$Basics_ops['++'],
 										_elm_lang$core$Basics$toString(
-											_jackgene$amazebot$Main$mmToPixels(_p4.point.topMm - _jackgene$amazebot$Main$robotRadiusMm)),
+											_jackgene$amazebot$Main$mmToPixels(_p5.point.topMm - _jackgene$amazebot$Main$robotRadiusMm)),
 										'px')
 								},
 								_1: {
@@ -13702,7 +13713,7 @@ var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
 										_1: A2(
 											_elm_lang$core$Basics_ops['++'],
 											_elm_lang$core$Basics$toString(
-												_jackgene$amazebot$Main$mmToPixels(_p4.point.leftMm - _jackgene$amazebot$Main$robotRadiusMm)),
+												_jackgene$amazebot$Main$mmToPixels(_p5.point.leftMm - _jackgene$amazebot$Main$robotRadiusMm)),
 											'px')
 									},
 									_1: {
@@ -13715,7 +13726,7 @@ var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
 												'rotate(',
 												A2(
 													_elm_lang$core$Basics_ops['++'],
-													_elm_lang$core$Basics$toString(_p4.orientationRad),
+													_elm_lang$core$Basics$toString(_p5.orientationRad),
 													'rad)'))
 										},
 										_1: {ctor: '[]'}
@@ -13780,6 +13791,12 @@ var _jackgene$amazebot$Main$codeMirrorFromTextArea = _elm_lang$core$Native_Platf
 	function (v) {
 		return [v._0, v._1];
 	});
+var _jackgene$amazebot$Main$codeMirrorSetValue = _elm_lang$core$Native_Platform.outgoingPort(
+	'codeMirrorSetValue',
+	function (v) {
+		return v;
+	});
+var _jackgene$amazebot$Main$codeMirrorValueChanged = _elm_lang$core$Native_Platform.incomingPort('codeMirrorValueChanged', _elm_lang$core$Json_Decode$string);
 var _jackgene$amazebot$Main$showMessage = _elm_lang$core$Native_Platform.outgoingPort(
 	'showMessage',
 	function (v) {
@@ -13832,19 +13849,36 @@ var _jackgene$amazebot$Main$mazeJsonDecoder = A3(
 		'w',
 		_elm_lang$core$Json_Decode$list(
 			_elm_lang$core$Json_Decode$list(_jackgene$amazebot$Main$wallJsonDecoder))));
+var _jackgene$amazebot$Main$ConsoleMessage = F2(
+	function (a, b) {
+		return {messageType: a, text: b};
+	});
 var _jackgene$amazebot$Main$Model = F6(
 	function (a, b, c, d, e, f) {
 		return {request: a, language: b, source: c, robotPosition: d, maze: e, console: f};
 	});
+var _jackgene$amazebot$Main$StdErr = {ctor: 'StdErr'};
+var _jackgene$amazebot$Main$StdOut = {ctor: 'StdOut'};
+var _jackgene$amazebot$Main$consoleMessageJsonDecoder = A3(
+	_elm_lang$core$Json_Decode$map2,
+	F2(
+		function (m, t) {
+			return A2(
+				_jackgene$amazebot$Main$ConsoleMessage,
+				function () {
+					var _p6 = t;
+					if (_p6 === 'o') {
+						return _jackgene$amazebot$Main$StdOut;
+					} else {
+						return _jackgene$amazebot$Main$StdErr;
+					}
+				}(),
+				m);
+		}),
+	A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
+	A2(_elm_lang$core$Json_Decode$field, 't', _elm_lang$core$Json_Decode$string));
 var _jackgene$amazebot$Main$ServerCommand = function (a) {
 	return {ctor: 'ServerCommand', _0: a};
-};
-var _jackgene$amazebot$Main$subscriptions = function (_p5) {
-	var _p6 = _p5;
-	return A2(
-		_elm_lang$websocket$WebSocket$listen,
-		_jackgene$amazebot$Main$webSocketUrl(_p6.request),
-		_jackgene$amazebot$Main$ServerCommand);
 };
 var _jackgene$amazebot$Main$ResetCode = {ctor: 'ResetCode'};
 var _jackgene$amazebot$Main$ClearConsole = {ctor: 'ClearConsole'};
@@ -13860,14 +13894,11 @@ var _jackgene$amazebot$Main$loadCodeTemplate = F2(
 			_elm_lang$http$Http$getString(
 				A2(
 					_elm_lang$core$Basics_ops['++'],
-					request.secure ? 'https' : 'http',
+					'//',
 					A2(
 						_elm_lang$core$Basics_ops['++'],
-						'://',
-						A2(
-							_elm_lang$core$Basics_ops['++'],
-							request.hostPath,
-							A2(_elm_lang$core$Basics_ops['++'], '/template.', language))))));
+						request.hostPath,
+						A2(_elm_lang$core$Basics_ops['++'], '/template.', language)))));
 	});
 var _jackgene$amazebot$Main$init = function (flags) {
 	var language = 'java';
@@ -13910,12 +13941,13 @@ var _jackgene$amazebot$Main$update = F2(
 			case 'ReceiveTemplatedSource':
 				var _p9 = _p7._0;
 				if (_p9.ctor === 'Ok') {
+					var _p10 = _p9._0;
 					return {
 						ctor: '_Tuple2',
 						_0: _elm_lang$core$Native_Utils.update(
 							model,
-							{source: _p9._0}),
-						_1: _elm_lang$core$Platform_Cmd$none
+							{source: _p10}),
+						_1: _jackgene$amazebot$Main$codeMirrorSetValue(_p10)
 					};
 				} else {
 					return A2(
@@ -13952,7 +13984,11 @@ var _jackgene$amazebot$Main$update = F2(
 					_0: _elm_lang$core$Native_Utils.update(
 						model,
 						{
-							console: {ctor: '::', _0: 'Reset Code', _1: model.console}
+							console: {
+								ctor: '::',
+								_0: A2(_jackgene$amazebot$Main$ConsoleMessage, _jackgene$amazebot$Main$StdErr, 'TODO Reset Code'),
+								_1: model.console
+							}
 						}),
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
@@ -13967,44 +14003,26 @@ var _jackgene$amazebot$Main$update = F2(
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
 			default:
-				var _p16 = _p7._0;
+				var _p17 = _p7._0;
 				return A2(
 					_elm_lang$core$Debug$log,
-					_elm_lang$core$Basics$toString(_p16),
+					_elm_lang$core$Basics$toString(_p17),
 					function () {
-						var _p10 = A2(
+						var _p11 = A2(
 							_elm_lang$core$Json_Decode$decodeString,
 							A2(_elm_lang$core$Json_Decode$field, 'c', _elm_lang$core$Json_Decode$string),
-							_p16);
-						if (_p10.ctor === 'Ok') {
-							switch (_p10._0) {
+							_p17);
+						if (_p11.ctor === 'Ok') {
+							switch (_p11._0) {
 								case 'init':
-									var _p11 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p16);
-									if (_p11.ctor === 'Ok') {
-										return {
-											ctor: '_Tuple2',
-											_0: _elm_lang$core$Native_Utils.update(
-												model,
-												{
-													robotPosition: _elm_lang$core$Maybe$Just(_p11._0)
-												}),
-											_1: _elm_lang$core$Platform_Cmd$none
-										};
-									} else {
-										return A2(
-											_elm_lang$core$Debug$log,
-											_p11._0,
-											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
-									}
-								case 'maze':
-									var _p12 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$mazeJsonDecoder, _p16);
+									var _p12 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p17);
 									if (_p12.ctor === 'Ok') {
 										return {
 											ctor: '_Tuple2',
 											_0: _elm_lang$core$Native_Utils.update(
 												model,
 												{
-													maze: _elm_lang$core$Maybe$Just(_p12._0)
+													robotPosition: _elm_lang$core$Maybe$Just(_p12._0)
 												}),
 											_1: _elm_lang$core$Platform_Cmd$none
 										};
@@ -14014,15 +14032,15 @@ var _jackgene$amazebot$Main$update = F2(
 											_p12._0,
 											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 									}
-								case 'm':
-									var _p13 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p16);
+								case 'maze':
+									var _p13 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$mazeJsonDecoder, _p17);
 									if (_p13.ctor === 'Ok') {
 										return {
 											ctor: '_Tuple2',
 											_0: _elm_lang$core$Native_Utils.update(
 												model,
 												{
-													robotPosition: _elm_lang$core$Maybe$Just(_p13._0)
+													maze: _elm_lang$core$Maybe$Just(_p13._0)
 												}),
 											_1: _elm_lang$core$Platform_Cmd$none
 										};
@@ -14032,16 +14050,17 @@ var _jackgene$amazebot$Main$update = F2(
 											_p13._0,
 											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 									}
-								case 'msg':
-									var _p14 = A2(
-										_elm_lang$core$Json_Decode$decodeString,
-										A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
-										_p16);
+								case 'm':
+									var _p14 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p17);
 									if (_p14.ctor === 'Ok') {
 										return {
 											ctor: '_Tuple2',
-											_0: model,
-											_1: _jackgene$amazebot$Main$showMessage(_p14._0)
+											_0: _elm_lang$core$Native_Utils.update(
+												model,
+												{
+													robotPosition: _elm_lang$core$Maybe$Just(_p14._0)
+												}),
+											_1: _elm_lang$core$Platform_Cmd$none
 										};
 									} else {
 										return A2(
@@ -14049,20 +14068,16 @@ var _jackgene$amazebot$Main$update = F2(
 											_p14._0,
 											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 									}
-								case 'log':
+								case 'msg':
 									var _p15 = A2(
 										_elm_lang$core$Json_Decode$decodeString,
 										A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
-										_p16);
+										_p17);
 									if (_p15.ctor === 'Ok') {
 										return {
 											ctor: '_Tuple2',
-											_0: _elm_lang$core$Native_Utils.update(
-												model,
-												{
-													console: {ctor: '::', _0: _p15._0, _1: model.console}
-												}),
-											_1: _elm_lang$core$Platform_Cmd$none
+											_0: model,
+											_1: _jackgene$amazebot$Main$showMessage(_p15._0)
 										};
 									} else {
 										return A2(
@@ -14070,16 +14085,34 @@ var _jackgene$amazebot$Main$update = F2(
 											_p15._0,
 											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 									}
+								case 'log':
+									var _p16 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$consoleMessageJsonDecoder, _p17);
+									if (_p16.ctor === 'Ok') {
+										return {
+											ctor: '_Tuple2',
+											_0: _elm_lang$core$Native_Utils.update(
+												model,
+												{
+													console: {ctor: '::', _0: _p16._0, _1: model.console}
+												}),
+											_1: _elm_lang$core$Platform_Cmd$none
+										};
+									} else {
+										return A2(
+											_elm_lang$core$Debug$log,
+											'Error parsing log json',
+											{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
+									}
 								default:
 									return A2(
 										_elm_lang$core$Debug$log,
-										A2(_elm_lang$core$Basics_ops['++'], 'Unhandled command: ', _p16),
+										A2(_elm_lang$core$Basics_ops['++'], 'Unhandled command: ', _p17),
 										{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						} else {
 							return A2(
 								_elm_lang$core$Debug$log,
-								A2(_elm_lang$core$Basics_ops['++'], 'Error parsing JSON: ', _p16),
+								A2(_elm_lang$core$Basics_ops['++'], 'Error parsing JSON: ', _p17),
 								{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 						}
 					}());
@@ -14087,6 +14120,22 @@ var _jackgene$amazebot$Main$update = F2(
 	});
 var _jackgene$amazebot$Main$ChangeSource = function (a) {
 	return {ctor: 'ChangeSource', _0: a};
+};
+var _jackgene$amazebot$Main$subscriptions = function (_p18) {
+	var _p19 = _p18;
+	return _elm_lang$core$Platform_Sub$batch(
+		{
+			ctor: '::',
+			_0: A2(
+				_elm_lang$websocket$WebSocket$listen,
+				_jackgene$amazebot$Main$webSocketUrl(_p19.request),
+				_jackgene$amazebot$Main$ServerCommand),
+			_1: {
+				ctor: '::',
+				_0: _jackgene$amazebot$Main$codeMirrorValueChanged(_jackgene$amazebot$Main$ChangeSource),
+				_1: {ctor: '[]'}
+			}
+		});
 };
 var _jackgene$amazebot$Main$SelectLanguage = function (a) {
 	return {ctor: 'SelectLanguage', _0: a};
@@ -14258,24 +14307,7 @@ var _jackgene$amazebot$Main$view = function (model) {
 									{
 										ctor: '::',
 										_0: _elm_lang$html$Html_Attributes$id('source'),
-										_1: {
-											ctor: '::',
-											_0: _elm_lang$html$Html_Events$onInput(_jackgene$amazebot$Main$ChangeSource),
-											_1: {
-												ctor: '::',
-												_0: _elm_lang$html$Html_Attributes$style(
-													{
-														ctor: '::',
-														_0: {ctor: '_Tuple2', _0: 'height', _1: '498px'},
-														_1: {
-															ctor: '::',
-															_0: {ctor: '_Tuple2', _0: 'width', _1: '99%'},
-															_1: {ctor: '[]'}
-														}
-													}),
-												_1: {ctor: '[]'}
-											}
-										}
+										_1: {ctor: '[]'}
 									},
 									{
 										ctor: '::',
@@ -14414,7 +14446,7 @@ var _jackgene$amazebot$Main$view = function (model) {
 							},
 							A2(
 								_elm_lang$core$List$map,
-								_jackgene$amazebot$Main$consoleLineView,
+								_jackgene$amazebot$Main$consoleMessageView,
 								_elm_lang$core$List$reverse(model.console))),
 						_1: {ctor: '[]'}
 					}

@@ -5,24 +5,14 @@ import Html.Attributes exposing (class, href, id, selected, style, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (decodeString, float, field, int, list, string)
-import Json.Encode as Encode
+import Json.Encode
 import WebSocket
-
-main : Program Request Model Msg
-main =
-  Html.programWithFlags
-    { init = init
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
-
 
 loadCodeTemplate : Request -> String -> Cmd Msg
 loadCodeTemplate request language =
   Http.send
     ReceiveTemplatedSource
-    (Http.getString ("template." ++ language))
+    (Http.getString ("//" ++ request.hostPath ++ "/template." ++ language))
 
 
 webSocketUrl : Request -> String
@@ -31,7 +21,8 @@ webSocketUrl request =
 
 
 port codeMirrorFromTextArea : (String, String) -> Cmd msg
-port codeMirror
+port codeMirrorSetValue : String -> Cmd msg
+port codeMirrorValueChanged : (String -> msg) -> Sub msg
 port showMessage : String -> Cmd msg
 
 
@@ -56,13 +47,20 @@ type alias Maze =
   { finish : Point
   , wallsHistory : List (List Wall)
   }
+type ConsoleMessageType
+  = StdOut
+  | StdErr
+type alias ConsoleMessage =
+  { messageType : ConsoleMessageType
+  , text : String
+  }
 type alias Model =
   { request : Request
   , language: String
   , source: String
   , robotPosition : Maybe RobotPosition
   , maze : Maybe Maze
-  , console : List String
+  , console : List ConsoleMessage
   }
 
 
@@ -91,14 +89,14 @@ type Msg
   | ServerCommand String
 
 
-saveAndRunEncoder: Model -> Encode.Value
+saveAndRunEncoder: Model -> Json.Encode.Value
 saveAndRunEncoder model =
-  Encode.object
+  Json.Encode.object
     [ ( "lang"
-      , Encode.string model.language
+      , Json.Encode.string model.language
       )
     , ( "source"
-      , Encode.string model.source
+      , Json.Encode.string model.source
       )
     ]
 
@@ -123,6 +121,21 @@ mazeJsonDecoder =
   Json.Decode.map2 Maze (pointJsonDecoder "ft" "fl") (field "w" (list (list wallJsonDecoder)))
 
 
+consoleMessageJsonDecoder : Json.Decode.Decoder ConsoleMessage
+consoleMessageJsonDecoder =
+  Json.Decode.map2
+    ( \m -> \t ->
+      ConsoleMessage
+        ( case t of
+          "o" -> StdOut
+          _ -> StdErr
+        )
+        m
+    )
+    (field "m" string)
+    (field "t" string)
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -134,7 +147,7 @@ update msg model =
       case result of
         Ok source ->
           ( { model | source = source }
-          , Cmd.none
+          , codeMirrorSetValue source
           )
         Err errorMsg ->
           Debug.log ("Error obtaining code template: " ++ (toString errorMsg)) (model, Cmd.none)
@@ -144,10 +157,10 @@ update msg model =
       )
     SaveAndRun ->
       ( model
-      , WebSocket.send (webSocketUrl model.request) (Encode.encode 0 (saveAndRunEncoder model))
+      , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
       )
     ResetCode ->
-      ( { model | console = "Reset Code" :: model.console }
+      ( { model | console = (ConsoleMessage StdErr "TODO Reset Code") :: model.console }
       , Cmd.none
       )
     ClearConsole ->
@@ -190,13 +203,13 @@ update msg model =
             Err errorMsg ->
               Debug.log errorMsg (model, Cmd.none)
         Ok "log" ->
-          case decodeString (field "m" string) json of
-            Ok message ->
-              ( { model | console = message :: model.console }
+          case decodeString consoleMessageJsonDecoder json of
+            Ok consoleMessage ->
+              ( { model | console = consoleMessage :: model.console }
               , Cmd.none
               )
-            Err errorMsg ->
-              Debug.log errorMsg (model, Cmd.none)
+            _ ->
+              Debug.log "Error parsing log json" (model, Cmd.none)
         Ok _ ->
           Debug.log ("Unhandled command: " ++ json) (model, Cmd.none)
         Err _ ->
@@ -206,7 +219,10 @@ update msg model =
 -- Subscriptions
 subscriptions : Model -> Sub Msg
 subscriptions {request} =
-  WebSocket.listen (webSocketUrl request) ServerCommand
+  Sub.batch
+    [ WebSocket.listen (webSocketUrl request) ServerCommand
+    , codeMirrorValueChanged ChangeSource
+    ]
 
 
 -- View
@@ -223,9 +239,14 @@ mmToPixels mm =
   mm / 10
 
 
-consoleLineView : String -> Html Msg
-consoleLineView line =
-  pre [] [text line]
+consoleMessageView : ConsoleMessage -> Html Msg
+consoleMessageView message =
+  pre
+    ( case message.messageType of
+        StdOut -> []
+        StdErr -> [ class "stderr" ]
+    )
+    [text message.text]
 
 
 wallView : Wall -> Html Msg
@@ -297,10 +318,7 @@ view model =
         ]
     , div [id "input"]
         [ div []
-          [ textarea
-              [id "source", onInput ChangeSource, style [("height", "498px"), ("width", "99%")]]
-              [text model.source]
-          ]
+          [ textarea [id "source"] [text model.source] ]
         , br [] []
         , select
             [onInput SelectLanguage]
@@ -316,5 +334,15 @@ view model =
         , button [onClick ResetCode] [text "Reset Code"]
         ]
     , div [id "output"] [ worldView model.robotPosition model.maze]
-    , div [id "console"] (List.map consoleLineView (List.reverse model.console))
+    , div [id "console"] (List.map consoleMessageView (List.reverse model.console))
     ]
+
+
+main : Program Request Model Msg
+main =
+  Html.programWithFlags
+    { init = init
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    }

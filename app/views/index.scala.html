@@ -6,16 +6,17 @@
     <script src="@routes.Assets.versioned("lib/codemirror/mode/python/python.js")" type="text/javascript"></script>
     <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
     <script type="text/javascript">
-      var app = Elm.Main.fullscreen(
+      let app = Elm.Main.fullscreen(
         {
           secure: window.location.protocol === "https:",
           hostPath: window.location.host + window.location.pathname
         }
       );
+      var cm;
       app.ports.codeMirrorFromTextArea.subscribe(
         function(idAndMode) {
-          var [id, mode] = idAndMode;
-          CodeMirror.fromTextArea(
+          let [id, mode] = idAndMode;
+          cm = CodeMirror.fromTextArea(
             document.getElementById(id),
             {
               lineWrapping: true,
@@ -26,6 +27,17 @@
               mode: mode
             }
           );
+          cm.on(
+            "changes",
+            function (cm) {
+              app.ports.codeMirrorValueChanged.send(cm.getValue());
+            }
+          );
+        }
+      );
+      app.ports.codeMirrorSetValue.subscribe(
+        function(value) {
+          cm.setValue(value);
         }
       );
       app.ports.showMessage.subscribe(
