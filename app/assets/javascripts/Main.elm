@@ -372,7 +372,7 @@ robotView maybeRobotPosition =
 
 worldView : Maybe RobotPosition -> Maybe Maze -> Html Msg
 worldView maybeRobotPosition maybeMaze =
-  div [id "world"] (mazeView maybeMaze ++ robotView maybeRobotPosition)
+  div [id "world"] (robotView maybeRobotPosition ++ mazeView maybeMaze)
 
 
 view : Model -> Html Msg

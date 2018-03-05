@@ -23,7 +23,7 @@ elmMake := {
     "bash", "-c",
     "elm-make app/assets/javascripts/Main.elm " +
     "--output public/javascripts/main.js " +
-    "--yes --debug --warn"
+    "--yes --warn"
   ).! match {
     case 0 =>
       streams.value.log.success("elm-make completed.")
