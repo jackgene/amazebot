@@ -9,11 +9,27 @@
       let app = Elm.Main.fullscreen(
         {
           secure: window.location.protocol === "https:",
-          hostPath: window.location.host + window.location.pathname
+          host: window.location.host,
+          pathname: window.location.pathname,
+          initLang: window.localStorage.getItem("lang") || "java"
         }
       );
-      var cm;
-      app.ports.codeMirrorFromTextArea.subscribe(
+      var cm, lastExecutedLine;
+
+      app.ports.localStorageSetItemCmd.subscribe(
+        function(keyValue) {
+          let [key, value] = keyValue;
+          window.localStorage.setItem(key, value);
+        }
+      );
+      app.ports.localStorageGetItemCmd.subscribe(
+        function(key) {
+          app.ports.localStorageGetItemSub.send(
+            window.localStorage.getItem(key)
+          );
+        }
+      );
+      app.ports.codeMirrorFromTextAreaCmd.subscribe(
         function(idAndMode) {
           let [id, mode] = idAndMode;
           cm = CodeMirror.fromTextArea(
@@ -30,17 +46,35 @@
           cm.on(
             "changes",
             function (cm) {
-              app.ports.codeMirrorValueChanged.send(cm.getValue());
+              app.ports.codeMirrorDocValueChangedSub.send(cm.getDoc().getValue());
             }
           );
         }
       );
-      app.ports.codeMirrorSetValue.subscribe(
-        function(value) {
-          cm.setValue(value);
+      app.ports.codeMirrorSetOptionCmd.subscribe(
+        function(keyValue) {
+          let [key, value] = keyValue;
+          cm.setOption(key, value);
         }
       );
-      app.ports.showMessage.subscribe(
+      app.ports.codeMirrorDocSetValueCmd.subscribe(
+        function(value) {
+          cm.getDoc().setValue(value);
+        }
+      );
+      app.ports.codeMirrorFlashLineCmd.subscribe(
+        function(line) {
+          if (lastExecutedLine) {
+            cm.getDoc().removeLineClass(lastExecutedLine, 'wrap', 'running');
+          }
+          if (line > 0) {
+            lastExecutedLine = cm.getDoc().addLineClass(line - 1, 'wrap', 'running');
+          } else {
+            lastExecutedLine = null;
+          }
+        }
+      );
+      app.ports.showMessageCmd.subscribe(
         function(message) {
           setTimeout(
             function () { window.alert(message) },
@@ -48,5 +82,10 @@
           );
         }
       );
+
+      document.cookie =
+        "lastAttempted=" + location.pathname +
+        ";expires=" + new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toUTCString() +
+        ";path=/";
     </script>
 }

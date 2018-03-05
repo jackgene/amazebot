@@ -6,30 +6,46 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (decodeString, float, field, int, list, string)
 import Json.Encode
+import Time exposing (Time, millisecond)
 import WebSocket
+
+
+languageToMediaType : String -> String
+languageToMediaType language =
+  case language of
+    "py" -> "text/x-python"
+    _ -> "text/x-java"
+
 
 loadCodeTemplate : Request -> String -> Cmd Msg
 loadCodeTemplate request language =
   Http.send
-    ReceiveTemplatedSource
-    (Http.getString ("//" ++ request.hostPath ++ "/template." ++ language))
+    ReceivedTemplatedSource
+    (Http.getString ("//" ++ request.host ++ request.pathname ++ "/template." ++ language))
 
 
 webSocketUrl : Request -> String
 webSocketUrl request =
-  (if request.secure then "wss" else "ws") ++ "://" ++ request.hostPath ++ "/simulation"
+  (if request.secure then "wss" else "ws") ++ "://" ++ request.host ++ request.pathname ++ "/simulation"
 
 
-port codeMirrorFromTextArea : (String, String) -> Cmd msg
-port codeMirrorSetValue : String -> Cmd msg
-port codeMirrorValueChanged : (String -> msg) -> Sub msg
-port showMessage : String -> Cmd msg
+port localStorageSetItemCmd : (String, String) -> Cmd msg
+port localStorageGetItemCmd : String -> Cmd msg
+port localStorageGetItemSub : (Maybe String -> msg) -> Sub msg
+port codeMirrorFromTextAreaCmd : (String, String) -> Cmd msg
+port codeMirrorSetOptionCmd : (String, String) -> Cmd msg
+port codeMirrorDocSetValueCmd : String -> Cmd msg
+port codeMirrorDocValueChangedSub : (String -> msg) -> Sub msg
+port codeMirrorFlashLineCmd : Int -> Cmd msg
+port showMessageCmd : String -> Cmd msg
 
 
 -- Model
 type alias Request =
-  { secure: Bool
-  , hostPath: String
+  { secure : Bool
+  , host : String
+  , pathname : String
+  , initLang : String
   }
 type alias Point =
   { topMm : Float
@@ -65,31 +81,30 @@ type alias Model =
 
 
 init : Request -> (Model, Cmd Msg)
-init flags =
-  let
-    language : String
-    language = "java"
-  in
-    ( Model flags language "" Nothing Nothing []
-    , Cmd.batch
-      [ loadCodeTemplate flags language
-      , codeMirrorFromTextArea ("source", "text/x-java")
-      ]
-    )
+init request =
+  ( Model request request.initLang "" Nothing Nothing []
+  , Cmd.batch
+    [ localStorageGetItemCmd (request.pathname ++ "/source." ++ request.initLang)
+    , codeMirrorFromTextAreaCmd ("source", languageToMediaType request.initLang)
+    ]
+  )
 
 
 -- Update
+-- TODO think about message names
 type Msg
-  = SelectLanguage String
+  = ReceivedLocalStorageItem (Maybe String)
+  | ReceivedTemplatedSource (Result Http.Error String)
+  | AdvanceWallHistory Time
+  | SelectLanguage String
   | ChangeSource String
-  | ReceiveTemplatedSource (Result Http.Error String)
   | SaveAndRun
   | ClearConsole
   | ResetCode
   | ServerCommand String
 
 
-saveAndRunEncoder: Model -> Json.Encode.Value
+saveAndRunEncoder : Model -> Json.Encode.Value
 saveAndRunEncoder model =
   Json.Encode.object
     [ ( "lang"
@@ -101,17 +116,17 @@ saveAndRunEncoder model =
     ]
 
 
-pointJsonDecoder: String -> String -> Json.Decode.Decoder Point
+pointJsonDecoder : String -> String -> Json.Decode.Decoder Point
 pointJsonDecoder topField leftField =
   Json.Decode.map2 Point (field topField float) (field leftField float)
 
 
-robotPositionJsonDecoder: Json.Decode.Decoder RobotPosition
+robotPositionJsonDecoder : Json.Decode.Decoder RobotPosition
 robotPositionJsonDecoder =
   Json.Decode.map2 RobotPosition (pointJsonDecoder "t" "l") (field "o" float)
 
 
-wallJsonDecoder: Json.Decode.Decoder Wall
+wallJsonDecoder : Json.Decode.Decoder Wall
 wallJsonDecoder =
   Json.Decode.map2 Wall (pointJsonDecoder "t" "l") (pointJsonDecoder "h" "w")
 
@@ -139,89 +154,143 @@ consoleMessageJsonDecoder =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    SelectLanguage language ->
-      ( { model | language = language }
-      , loadCodeTemplate model.request language
-      )
-    ReceiveTemplatedSource result ->
+    ReceivedLocalStorageItem maybeItem ->
+      case maybeItem of
+        Just source ->
+          ( { model | source = source }
+          , codeMirrorDocSetValueCmd source
+          )
+        Nothing ->
+          (model, loadCodeTemplate model.request model.language)
+    ReceivedTemplatedSource result ->
       case result of
         Ok source ->
           ( { model | source = source }
-          , codeMirrorSetValue source
+          , codeMirrorDocSetValueCmd source
           )
         Err errorMsg ->
           Debug.log ("Error obtaining code template: " ++ (toString errorMsg)) (model, Cmd.none)
+    AdvanceWallHistory _ ->
+      let
+        updatedMaze : Maybe Maze
+        updatedMaze =
+          Maybe.map
+            ( \maze ->
+              let
+                updatedWallsHistory : List (List Wall)
+                updatedWallsHistory =
+                  case maze.wallsHistory of
+                    _ :: curWallSet :: nextWallSets ->
+                      curWallSet :: nextWallSets
+                    onlyOrNoWallSet ->
+                      onlyOrNoWallSet
+              in
+                { maze | wallsHistory = updatedWallsHistory }
+            )
+            model.maze
+      in
+        ( { model | maze = updatedMaze }
+        , Cmd.none
+        )
+    SelectLanguage language ->
+      ( { model | language = language }
+      , Cmd.batch
+        [ codeMirrorSetOptionCmd
+          ( "mode"
+          , languageToMediaType language
+          )
+        , localStorageGetItemCmd (model.request.pathname ++ "/source." ++ model.language)
+        ]
+      )
     ChangeSource source ->
       ( { model | source = source }
       , Cmd.none
       )
     SaveAndRun ->
       ( model
-      , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
+      , Cmd.batch
+        [ localStorageSetItemCmd ("lang", model.language)
+        , Cmd.batch
+          [ localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
+          , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
+          ]
+        ]
       )
     ResetCode ->
-      ( { model | console = (ConsoleMessage StdErr "TODO Reset Code") :: model.console }
-      , Cmd.none
+      ( { model | source = "" }
+      , codeMirrorDocSetValueCmd ""
       )
     ClearConsole ->
       ( { model | console = [] }
       , Cmd.none
       )
     ServerCommand json ->
-      Debug.log (toString json) (
       case decodeString (field "c" string) json of
-        Ok "init" ->
-          case (decodeString robotPositionJsonDecoder json) of
-            Ok robotPosition ->
-              ( { model | robotPosition = Just robotPosition }
-              , Cmd.none
-              )
-            Err errorMsg ->
-              Debug.log errorMsg (model, Cmd.none)
         Ok "maze" ->
           case (decodeString mazeJsonDecoder json) of
             Ok maze ->
-              ( { model | maze = Just maze}
+              ( { model
+                | maze = Just {maze | wallsHistory = List.reverse maze.wallsHistory}
+                }
               , Cmd.none
               )
             Err errorMsg ->
-              Debug.log errorMsg (model, Cmd.none)
+              Debug.log ("Error parsing draw maze command: " ++ errorMsg) (model, Cmd.none)
+        Ok "init" ->
+          case (decodeString robotPositionJsonDecoder json) of
+            Ok robotPosition ->
+              -- TODO don't animate
+              ( {model | robotPosition = Just robotPosition}
+              , Cmd.none
+              )
+            Err errorMsg ->
+              Debug.log ("Error parsing robot initialization command: " ++ errorMsg) (model, Cmd.none)
         Ok "m" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              ( { model | robotPosition = Just robotPosition }
+              ( {model | robotPosition = Just robotPosition}
               , Cmd.none
               )
             Err errorMsg ->
-              Debug.log errorMsg (model, Cmd.none)
+              Debug.log ("Error parsing move robot command: " ++ errorMsg) (model, Cmd.none)
         Ok "msg" ->
           case decodeString (field "m" string) json of
             Ok message ->
               ( model
-              , showMessage message
+              , showMessageCmd message
               )
             Err errorMsg ->
-              Debug.log errorMsg (model, Cmd.none)
+              Debug.log ("Error parsing message alert command: " ++ errorMsg) (model, Cmd.none)
         Ok "log" ->
           case decodeString consoleMessageJsonDecoder json of
             Ok consoleMessage ->
               ( { model | console = consoleMessage :: model.console }
               , Cmd.none
               )
-            _ ->
-              Debug.log "Error parsing log json" (model, Cmd.none)
+            Err errorMsg ->
+              Debug.log ("Error parsing console log command: " ++ errorMsg) (model, Cmd.none)
+        Ok "l" ->
+          case decodeString (field "l" int) json of
+            Ok line ->
+              ( model
+              , codeMirrorFlashLineCmd line
+              )
+            Err errorMsg ->
+              Debug.log ("Error parsing line execution command: " ++ errorMsg) (model, Cmd.none)
         Ok _ ->
           Debug.log ("Unhandled command: " ++ json) (model, Cmd.none)
-        Err _ ->
-          Debug.log ("Error parsing JSON: " ++ json) (model, Cmd.none)
-      )
+        Err errorMsg ->
+          Debug.log ("Error parsing WebSocket command JSON: " ++ errorMsg) (model, Cmd.none)
+
 
 -- Subscriptions
 subscriptions : Model -> Sub Msg
 subscriptions {request} =
   Sub.batch
-    [ WebSocket.listen (webSocketUrl request) ServerCommand
-    , codeMirrorValueChanged ChangeSource
+    [ codeMirrorDocValueChangedSub ChangeSource
+    , localStorageGetItemSub ReceivedLocalStorageItem
+    , Time.every (50*millisecond) AdvanceWallHistory
+    , WebSocket.listen (webSocketUrl request) ServerCommand
     ]
 
 
@@ -243,7 +312,7 @@ consoleMessageView : ConsoleMessage -> Html Msg
 consoleMessageView message =
   pre
     ( case message.messageType of
-        StdOut -> []
+        StdOut -> [ class "stdout" ]
         StdErr -> [ class "stderr" ]
     )
     [text message.text]
@@ -300,9 +369,10 @@ robotView maybeRobotPosition =
     Nothing ->
       []
 
+
 worldView : Maybe RobotPosition -> Maybe Maze -> Html Msg
 worldView maybeRobotPosition maybeMaze =
-  div [id "world"] ( mazeView maybeMaze ++ robotView maybeRobotPosition )
+  div [id "world"] (mazeView maybeMaze ++ robotView maybeRobotPosition)
 
 
 view : Model -> Html Msg
@@ -318,22 +388,22 @@ view model =
         ]
     , div [id "input"]
         [ div []
-          [ textarea [id "source"] [text model.source] ]
+          [textarea [id "source"] [text model.source]]
         , br [] []
         , select
             [onInput SelectLanguage]
             [ option
-                [value "java", selected (model.language /= "python")]
+                [value "java", selected (model.language /= "py")]
                 [text "Java 8"]
             , option
-                [value "py", selected (model.language == "python")]
+                [value "py", selected (model.language == "py")]
                 [text "Python 2.7"]
             ]
         , button [onClick SaveAndRun] [text "Save & Run"]
         , button [onClick ClearConsole] [text "Clear Console"]
         , button [onClick ResetCode] [text "Reset Code"]
         ]
-    , div [id "output"] [ worldView model.robotPosition model.maze]
+    , div [id "output"] [worldView model.robotPosition model.maze]
     , div [id "console"] (List.map consoleMessageView (List.reverse model.console))
     ]
 
