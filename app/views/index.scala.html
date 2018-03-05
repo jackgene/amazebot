@@ -1,37 +1,91 @@
 @()
 
 @main("A Maze Bot") {
-    <ul id="navigation">
-        <li><a href="/maze/level0">Level 0</a></li>
-        <li><a href="/maze/level1">Level 1</a></li>
-        <li><a href="/maze/level2">Level 2</a></li>
-        <li><a href="/maze/level3">Level 3</a></li>
-        <li><a href="/maze/level4">Level 4</a></li>
-        <li><a href="/maze/random">Random Maze</a></li>
-    </ul>
-    <div id="input">
-        <label>
-            <textarea ui-codemirror="{ onLoad: codemirrorLoaded }" ng-model="source"></textarea>
-        </label><br/>
-        <label>
-            <select ng-model="lang" ng-change="changeLanguage()">
-                <option value="java">Java 8</option>
-                <option value="py">Python 2.7</option>
-            </select>
-        </label>
-        <button ng-click="runSimulation()">Save & Run</button>
-        <button ng-click="clearConsole()">Clear Console</button>
-        <button ng-click="resetCode()">Reset Code</button>
-    </div>
-    <div id="output">
-        <div id="world">
-            <div id="finish" ng-style="finish">move robot here</div>
-            <div id="robot" ng-style="robot"></div>
-            <div class="wall" ng-repeat="wall in walls" ng-style="wall"></div>
-            <div id="timer">{{elapsedTimeMillis | date:'mm:ss.sss':'UTC' | limitTo:7}}</div>
-        </div>
-    </div>
-    <div id="console">
-        <pre class="line" ng-repeat="line in console" ng-class="line.type">{{line.text}}</pre>
-    </div>
+    <script src="@routes.Assets.versioned("lib/codemirror/lib/codemirror.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.versioned("lib/codemirror/mode/clike/clike.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.versioned("lib/codemirror/mode/python/python.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
+    <script type="text/javascript">
+      let app = Elm.Main.fullscreen(
+        {
+          secure: window.location.protocol === "https:",
+          host: window.location.host,
+          pathname: window.location.pathname,
+          initLang: window.localStorage.getItem("lang") || "java"
+        }
+      );
+      var cm, lastExecutedLine;
+
+      app.ports.localStorageSetItemCmd.subscribe(
+        function(keyValue) {
+          let [key, value] = keyValue;
+          window.localStorage.setItem(key, value);
+        }
+      );
+      app.ports.localStorageGetItemCmd.subscribe(
+        function(key) {
+          app.ports.localStorageGetItemSub.send(
+            window.localStorage.getItem(key)
+          );
+        }
+      );
+      app.ports.codeMirrorFromTextAreaCmd.subscribe(
+        function(idAndMode) {
+          let [id, mode] = idAndMode;
+          cm = CodeMirror.fromTextArea(
+            document.getElementById(id),
+            {
+              lineWrapping: true,
+              lineNumbers: true,
+              matchBrackets: true,
+              indentUnit: 4,
+              indentWithTabs: true,
+              mode: mode
+            }
+          );
+          cm.on(
+            "changes",
+            function (cm) {
+              app.ports.codeMirrorDocValueChangedSub.send(cm.getDoc().getValue());
+            }
+          );
+        }
+      );
+      app.ports.codeMirrorSetOptionCmd.subscribe(
+        function(keyValue) {
+          let [key, value] = keyValue;
+          cm.setOption(key, value);
+        }
+      );
+      app.ports.codeMirrorDocSetValueCmd.subscribe(
+        function(value) {
+          cm.getDoc().setValue(value);
+        }
+      );
+      app.ports.codeMirrorFlashLineCmd.subscribe(
+        function(line) {
+          if (lastExecutedLine) {
+            cm.getDoc().removeLineClass(lastExecutedLine, 'wrap', 'running');
+          }
+          if (line > 0) {
+            lastExecutedLine = cm.getDoc().addLineClass(line - 1, 'wrap', 'running');
+          } else {
+            lastExecutedLine = null;
+          }
+        }
+      );
+      app.ports.showMessageCmd.subscribe(
+        function(message) {
+          setTimeout(
+            function () { window.alert(message) },
+            500
+          );
+        }
+      );
+
+      document.cookie =
+        "lastAttempted=" + location.pathname +
+        ";expires=" + new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toUTCString() +
+        ";path=/";
+    </script>
 }

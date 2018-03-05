@@ -14,7 +14,7 @@ body {
 .wall {
     position: absolute;
     background-color: black;
-    border: solid black 2px;
+    border: none;
 }
 
 #navigation {
@@ -40,7 +40,7 @@ body {
     text-decoration: none;
 }
 
-#input  {
+#input {
     position: absolute;
     top: 30px;
     left: 0;
