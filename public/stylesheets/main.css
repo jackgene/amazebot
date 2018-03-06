@@ -67,6 +67,7 @@ body {
     background-image: url('../images/roomba.png');
     width: 35px;
     height: 35px;
+    z-index: 10;
     transition: all 400ms linear;
 }
 
