@@ -1,11 +1,17 @@
 port module Main exposing (..)
 
+-- TODO timer
+-- TODO look into why simulation (line flashes) continue to come after crash
+
+import Dom
+import Dom.Scroll
 import Html exposing (..)
 import Html.Attributes exposing (class, href, id, selected, style, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (decodeString, float, field, int, list, string)
 import Json.Encode
+import Task
 import Time exposing (Time, millisecond, second)
 import WebSocket
 
@@ -103,6 +109,7 @@ type Msg
   | ResetCode
   | ServerCommand String
   | SendWebSocketKeepAlive Time
+  | ConsoleScrolled (Result Dom.Error ())
 
 
 saveAndRunEncoder : Model -> Json.Encode.Value
@@ -200,6 +207,7 @@ update msg model =
           ( "mode"
           , languageToMediaType language
           )
+        , localStorageSetItemCmd ("lang", language)
         , localStorageGetItemCmd (model.request.pathname ++ "/source." ++ model.language)
         ]
       )
@@ -211,10 +219,8 @@ update msg model =
       ( model
       , Cmd.batch
         [ localStorageSetItemCmd ("lang", model.language)
-        , Cmd.batch
-          [ localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
-          , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
-          ]
+        , localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
+        , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
         ]
       )
     ResetCode ->
@@ -266,7 +272,7 @@ update msg model =
           case decodeString consoleMessageJsonDecoder json of
             Ok consoleMessage ->
               ( { model | console = consoleMessage :: model.console }
-              , Cmd.none
+              , Task.attempt ConsoleScrolled (Dom.Scroll.toBottom "console")
               )
             Err errorMsg ->
               Debug.log ("Error parsing console log command: " ++ errorMsg) (model, Cmd.none)
@@ -286,6 +292,8 @@ update msg model =
       ( model
       , WebSocket.send (webSocketUrl model.request) "{}"
       )
+    ConsoleScrolled _ ->
+      ( model, Cmd.none ) -- No-op
 
 
 -- Subscriptions
