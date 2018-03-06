@@ -284,14 +284,23 @@ update msg model =
 
 
 -- Subscriptions
+mapDrawInProgress : Maybe Maze -> Bool
+mapDrawInProgress maybeMaze =
+  case maybeMaze of
+    Just maze -> 1 < (List.length maze.wallsHistory)
+    Nothing -> False
+
+
 subscriptions : Model -> Sub Msg
-subscriptions {request} =
+subscriptions model =
   Sub.batch
-    [ codeMirrorDocValueChangedSub ChangeSource
-    , localStorageGetItemSub ReceivedLocalStorageItem
-    , Time.every (50*millisecond) AdvanceWallHistory
-    , WebSocket.listen (webSocketUrl request) ServerCommand
-    ]
+    ( [ codeMirrorDocValueChangedSub ChangeSource
+      , localStorageGetItemSub ReceivedLocalStorageItem
+      , WebSocket.listen (webSocketUrl model.request) ServerCommand
+      ] ++
+      if not (mapDrawInProgress model.maze) then []
+      else [Time.every (50*millisecond) AdvanceWallHistory]
+    )
 
 
 -- View
