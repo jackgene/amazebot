@@ -6,7 +6,7 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (decodeString, float, field, int, list, string)
 import Json.Encode
-import Time exposing (Time, millisecond)
+import Time exposing (Time, millisecond, second)
 import WebSocket
 
 
@@ -102,6 +102,7 @@ type Msg
   | ClearConsole
   | ResetCode
   | ServerCommand String
+  | SendWebSocketKeepAlive Time
 
 
 saveAndRunEncoder : Model -> Json.Encode.Value
@@ -281,6 +282,10 @@ update msg model =
           Debug.log ("Unhandled command: " ++ json) (model, Cmd.none)
         Err errorMsg ->
           Debug.log ("Error parsing WebSocket command JSON: " ++ errorMsg) (model, Cmd.none)
+    SendWebSocketKeepAlive _ ->
+      ( model
+      , WebSocket.send (webSocketUrl model.request) "{}"
+      )
 
 
 -- Subscriptions
@@ -296,10 +301,11 @@ subscriptions model =
   Sub.batch
     ( [ codeMirrorDocValueChangedSub ChangeSource
       , localStorageGetItemSub ReceivedLocalStorageItem
+      , Time.every (45 * second) SendWebSocketKeepAlive
       , WebSocket.listen (webSocketUrl model.request) ServerCommand
       ] ++
       if not (mapDrawInProgress model.maze) then []
-      else [Time.every (50*millisecond) AdvanceWallHistory]
+      else [Time.every (50 * millisecond) AdvanceWallHistory]
     )
 
 

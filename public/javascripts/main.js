@@ -13966,6 +13966,9 @@ var _jackgene$amazebot$Main$consoleMessageJsonDecoder = A3(
 		}),
 	A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
 	A2(_elm_lang$core$Json_Decode$field, 't', _elm_lang$core$Json_Decode$string));
+var _jackgene$amazebot$Main$SendWebSocketKeepAlive = function (a) {
+	return {ctor: 'SendWebSocketKeepAlive', _0: a};
+};
 var _jackgene$amazebot$Main$ServerCommand = function (a) {
 	return {ctor: 'ServerCommand', _0: a};
 };
@@ -14473,7 +14476,7 @@ var _jackgene$amazebot$Main$update = F2(
 						}),
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
-			default:
+			case 'ServerCommand':
 				var _p24 = _p9._0;
 				var _p16 = A2(
 					_elm_lang$core$Json_Decode$decodeString,
@@ -14605,6 +14608,15 @@ var _jackgene$amazebot$Main$update = F2(
 						A2(_elm_lang$core$Basics_ops['++'], 'Error parsing WebSocket command JSON: ', _p16._0),
 						{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 				}
+			default:
+				return {
+					ctor: '_Tuple2',
+					_0: model,
+					_1: A2(
+						_elm_lang$websocket$WebSocket$send,
+						_jackgene$amazebot$Main$webSocketUrl(model.request),
+						'{}')
+				};
 		}
 	});
 var _jackgene$amazebot$Main$ReceivedLocalStorageItem = function (a) {
@@ -14622,11 +14634,15 @@ var _jackgene$amazebot$Main$subscriptions = function (model) {
 					_0: _jackgene$amazebot$Main$localStorageGetItemSub(_jackgene$amazebot$Main$ReceivedLocalStorageItem),
 					_1: {
 						ctor: '::',
-						_0: A2(
-							_elm_lang$websocket$WebSocket$listen,
-							_jackgene$amazebot$Main$webSocketUrl(model.request),
-							_jackgene$amazebot$Main$ServerCommand),
-						_1: {ctor: '[]'}
+						_0: A2(_elm_lang$core$Time$every, 45 * _elm_lang$core$Time$second, _jackgene$amazebot$Main$SendWebSocketKeepAlive),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_lang$websocket$WebSocket$listen,
+								_jackgene$amazebot$Main$webSocketUrl(model.request),
+								_jackgene$amazebot$Main$ServerCommand),
+							_1: {ctor: '[]'}
+						}
 					}
 				}
 			},
@@ -14664,7 +14680,7 @@ var _jackgene$amazebot$Main$main = _elm_lang$html$Html$programWithFlags(
 var Elm = {};
 Elm['Main'] = Elm['Main'] || {};
 if (typeof _jackgene$amazebot$Main$main !== 'undefined') {
-    _jackgene$amazebot$Main$main(Elm['Main'], 'Main', {"types":{"unions":{"Dict.LeafColor":{"args":[],"tags":{"LBBlack":[],"LBlack":[]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":["Dict.LeafColor"]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.Msg":{"args":[],"tags":{"SelectLanguage":["String"],"ServerCommand":["String"],"ResetCode":[],"SaveAndRun":[],"ChangeSource":["String"],"AdvanceWallHistory":["Time.Time"],"ClearConsole":[],"ReceivedTemplatedSource":["Result.Result Http.Error String"],"ReceivedLocalStorageItem":["Maybe.Maybe String"]}},"Dict.NColor":{"args":[],"tags":{"BBlack":[],"Red":[],"NBlack":[],"Black":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String"],"NetworkError":[],"Timeout":[],"BadStatus":["Http.Response String"],"BadPayload":["String","Http.Response String"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}},"aliases":{"Http.Response":{"args":["body"],"type":"{ url : String , status : { code : Int, message : String } , headers : Dict.Dict String String , body : body }"},"Time.Time":{"args":[],"type":"Float"}},"message":"Main.Msg"},"versions":{"elm":"0.18.0"}});
+    _jackgene$amazebot$Main$main(Elm['Main'], 'Main', {"types":{"unions":{"Dict.LeafColor":{"args":[],"tags":{"LBBlack":[],"LBlack":[]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":["Dict.LeafColor"]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Main.Msg":{"args":[],"tags":{"SelectLanguage":["String"],"ServerCommand":["String"],"SendWebSocketKeepAlive":["Time.Time"],"ResetCode":[],"SaveAndRun":[],"ChangeSource":["String"],"AdvanceWallHistory":["Time.Time"],"ClearConsole":[],"ReceivedTemplatedSource":["Result.Result Http.Error String"],"ReceivedLocalStorageItem":["Maybe.Maybe String"]}},"Dict.NColor":{"args":[],"tags":{"BBlack":[],"Red":[],"NBlack":[],"Black":[]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String"],"NetworkError":[],"Timeout":[],"BadStatus":["Http.Response String"],"BadPayload":["String","Http.Response String"]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}}},"aliases":{"Http.Response":{"args":["body"],"type":"{ url : String , status : { code : Int, message : String } , headers : Dict.Dict String String , body : body }"},"Time.Time":{"args":[],"type":"Float"}},"message":"Main.Msg"},"versions":{"elm":"0.18.0"}});
 }
 
 if (typeof define === "function" && define['amd'])
