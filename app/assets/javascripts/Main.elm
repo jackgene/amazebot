@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 -- TODO timer
--- TODO look into why simulation (line flashes) continue to come after crash
+-- TODO look into why simulation (line flashes) continue to come after collision
 
 import Dom
 import Dom.Scroll
@@ -61,6 +61,10 @@ type alias RobotPosition =
   { point : Point
   , orientationRad : Float
   }
+type alias Robot =
+  { position : RobotPosition
+  , active : Bool
+  }
 type alias Wall =
   { topLeft: Point
   , bottomRightFromTopLeft: Point
@@ -80,7 +84,8 @@ type alias Model =
   { request : Request
   , language: String
   , source: String
-  , robotPosition : Maybe RobotPosition
+  , startingPosition : Maybe RobotPosition
+  , robot : Maybe Robot
   , maze : Maybe Maze
   , console : List ConsoleMessage
   }
@@ -88,7 +93,7 @@ type alias Model =
 
 init : Request -> (Model, Cmd Msg)
 init request =
-  ( Model request request.initLang "" Nothing Nothing []
+  ( Model request request.initLang "" Nothing Nothing Nothing []
   , Cmd.batch
     [ localStorageGetItemCmd (request.pathname ++ "/source." ++ request.initLang)
     , codeMirrorFromTextAreaCmd ("source", languageToMediaType request.initLang)
@@ -216,7 +221,7 @@ update msg model =
       , Cmd.none
       )
     SaveAndRun ->
-      ( model
+      ( { model | robot = Maybe.map (\robotPos -> Robot robotPos False) model.startingPosition }
       , Cmd.batch
         [ localStorageSetItemCmd ("lang", model.language)
         , localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
@@ -246,8 +251,10 @@ update msg model =
         Ok "init" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              -- TODO don't animate
-              ( {model | robotPosition = Just robotPosition}
+              ( { model
+                | robot = Just (Robot robotPosition False)
+                , startingPosition = Just (Maybe.withDefault robotPosition model.startingPosition)
+                }
               , Cmd.none
               )
             Err errorMsg ->
@@ -255,7 +262,7 @@ update msg model =
         Ok "m" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              ( {model | robotPosition = Just robotPosition}
+              ( {model | robot = Just (Robot robotPosition True)}
               , Cmd.none
               )
             Err errorMsg ->
@@ -376,16 +383,18 @@ mazeView maybeMaze =
       []
 
 
-robotView : Maybe RobotPosition -> List (Html Msg)
-robotView maybeRobotPosition =
-  case maybeRobotPosition of
-    Just robotPosition ->
+robotView : Maybe Robot -> List (Html Msg)
+robotView maybeRobot =
+  case maybeRobot of
+    Just {position, active} ->
       [ div
           [ id "robot"
-          , style [ ("top", toString (mmToPixels (robotPosition.point.topMm - robotRadiusMm)) ++ "px")
-                  , ("left", toString (mmToPixels (robotPosition.point.leftMm - robotRadiusMm)) ++ "px")
-                  , ("transform", "rotate(" ++ toString robotPosition.orientationRad ++ "rad)") -- animate from robotPosition.orientationRad - pi
-                  ]
+          , style
+            [ ("top", toString (mmToPixels (position.point.topMm - robotRadiusMm)) ++ "px")
+            , ("left", toString (mmToPixels (position.point.leftMm - robotRadiusMm)) ++ "px")
+            , ("transform", "rotate(" ++ toString position.orientationRad ++ "rad)")
+            , ("transition", if active then "all 400ms linear" else "none")
+            ]
           ]
           []
       ]
@@ -393,9 +402,9 @@ robotView maybeRobotPosition =
       []
 
 
-worldView : Maybe RobotPosition -> Maybe Maze -> Html Msg
-worldView maybeRobotPosition maybeMaze =
-  div [id "world"] (robotView maybeRobotPosition ++ mazeView maybeMaze)
+worldView : Maybe Robot -> Maybe Maze -> Html Msg
+worldView maybeRobot maybeMaze =
+  div [id "world"] (robotView maybeRobot ++ mazeView maybeMaze)
 
 
 view : Model -> Html Msg
@@ -426,7 +435,7 @@ view model =
         , button [onClick ClearConsole] [text "Clear Console"]
         , button [onClick ResetCode] [text "Reset Code"]
         ]
-    , div [id "output"] [worldView model.robotPosition model.maze]
+    , div [id "output"] [worldView model.robot model.maze]
     , div [id "console"] (List.map consoleMessageView (List.reverse model.console))
     ]
 

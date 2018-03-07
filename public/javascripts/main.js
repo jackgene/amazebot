@@ -13893,10 +13893,10 @@ var _jackgene$amazebot$Main$mazeView = function (maybeMaze) {
 	}
 };
 var _jackgene$amazebot$Main$robotRadiusMm = 173.5;
-var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
-	var _p4 = maybeRobotPosition;
+var _jackgene$amazebot$Main$robotView = function (maybeRobot) {
+	var _p4 = maybeRobot;
 	if (_p4.ctor === 'Just') {
-		var _p5 = _p4._0;
+		var _p5 = _p4._0.position;
 		return {
 			ctor: '::',
 			_0: A2(
@@ -13942,7 +13942,15 @@ var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
 													_elm_lang$core$Basics$toString(_p5.orientationRad),
 													'rad)'))
 										},
-										_1: {ctor: '[]'}
+										_1: {
+											ctor: '::',
+											_0: {
+												ctor: '_Tuple2',
+												_0: 'transition',
+												_1: _p4._0.active ? 'all 400ms linear' : 'none'
+											},
+											_1: {ctor: '[]'}
+										}
 									}
 								}
 							}),
@@ -13957,7 +13965,7 @@ var _jackgene$amazebot$Main$robotView = function (maybeRobotPosition) {
 	}
 };
 var _jackgene$amazebot$Main$worldView = F2(
-	function (maybeRobotPosition, maybeMaze) {
+	function (maybeRobot, maybeMaze) {
 		return A2(
 			_elm_lang$html$Html$div,
 			{
@@ -13967,7 +13975,7 @@ var _jackgene$amazebot$Main$worldView = F2(
 			},
 			A2(
 				_elm_lang$core$Basics_ops['++'],
-				_jackgene$amazebot$Main$robotView(maybeRobotPosition),
+				_jackgene$amazebot$Main$robotView(maybeRobot),
 				_jackgene$amazebot$Main$mazeView(maybeMaze)));
 	});
 var _jackgene$amazebot$Main$mapDrawInProgress = function (maybeMaze) {
@@ -14093,6 +14101,10 @@ var _jackgene$amazebot$Main$robotPositionJsonDecoder = A3(
 	_jackgene$amazebot$Main$RobotPosition,
 	A2(_jackgene$amazebot$Main$pointJsonDecoder, 't', 'l'),
 	A2(_elm_lang$core$Json_Decode$field, 'o', _elm_lang$core$Json_Decode$float));
+var _jackgene$amazebot$Main$Robot = F2(
+	function (a, b) {
+		return {position: a, active: b};
+	});
 var _jackgene$amazebot$Main$Wall = F2(
 	function (a, b) {
 		return {topLeft: a, bottomRightFromTopLeft: b};
@@ -14119,18 +14131,19 @@ var _jackgene$amazebot$Main$ConsoleMessage = F2(
 	function (a, b) {
 		return {messageType: a, text: b};
 	});
-var _jackgene$amazebot$Main$Model = F6(
-	function (a, b, c, d, e, f) {
-		return {request: a, language: b, source: c, robotPosition: d, maze: e, console: f};
+var _jackgene$amazebot$Main$Model = F7(
+	function (a, b, c, d, e, f, g) {
+		return {request: a, language: b, source: c, startingPosition: d, robot: e, maze: f, console: g};
 	});
 var _jackgene$amazebot$Main$init = function (request) {
 	return {
 		ctor: '_Tuple2',
-		_0: A6(
+		_0: A7(
 			_jackgene$amazebot$Main$Model,
 			request,
 			request.initLang,
 			'',
+			_elm_lang$core$Maybe$Nothing,
 			_elm_lang$core$Maybe$Nothing,
 			_elm_lang$core$Maybe$Nothing,
 			{ctor: '[]'}),
@@ -14485,7 +14498,7 @@ var _jackgene$amazebot$Main$view = function (model) {
 						},
 						{
 							ctor: '::',
-							_0: A2(_jackgene$amazebot$Main$worldView, model.robotPosition, model.maze),
+							_0: A2(_jackgene$amazebot$Main$worldView, model.robot, model.maze),
 							_1: {ctor: '[]'}
 						}),
 					_1: {
@@ -14639,7 +14652,16 @@ var _jackgene$amazebot$Main$update = F2(
 			case 'SaveAndRun':
 				return {
 					ctor: '_Tuple2',
-					_0: model,
+					_0: _elm_lang$core$Native_Utils.update(
+						model,
+						{
+							robot: A2(
+								_elm_lang$core$Maybe$map,
+								function (robotPos) {
+									return A2(_jackgene$amazebot$Main$Robot, robotPos, false);
+								},
+								model.startingPosition)
+						}),
 					_1: _elm_lang$core$Platform_Cmd$batch(
 						{
 							ctor: '::',
@@ -14689,15 +14711,15 @@ var _jackgene$amazebot$Main$update = F2(
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
 			case 'ServerCommand':
-				var _p24 = _p9._0;
+				var _p25 = _p9._0;
 				var _p16 = A2(
 					_elm_lang$core$Json_Decode$decodeString,
 					A2(_elm_lang$core$Json_Decode$field, 'c', _elm_lang$core$Json_Decode$string),
-					_p24);
+					_p25);
 				if (_p16.ctor === 'Ok') {
 					switch (_p16._0) {
 						case 'maze':
-							var _p17 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$mazeJsonDecoder, _p24);
+							var _p17 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$mazeJsonDecoder, _p25);
 							if (_p17.ctor === 'Ok') {
 								var _p18 = _p17._0;
 								return {
@@ -14721,14 +14743,18 @@ var _jackgene$amazebot$Main$update = F2(
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						case 'init':
-							var _p19 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p24);
+							var _p19 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p25);
 							if (_p19.ctor === 'Ok') {
+								var _p20 = _p19._0;
 								return {
 									ctor: '_Tuple2',
 									_0: _elm_lang$core$Native_Utils.update(
 										model,
 										{
-											robotPosition: _elm_lang$core$Maybe$Just(_p19._0)
+											robot: _elm_lang$core$Maybe$Just(
+												A2(_jackgene$amazebot$Main$Robot, _p20, false)),
+											startingPosition: _elm_lang$core$Maybe$Just(
+												A2(_elm_lang$core$Maybe$withDefault, _p20, model.startingPosition))
 										}),
 									_1: _elm_lang$core$Platform_Cmd$none
 								};
@@ -14739,49 +14765,50 @@ var _jackgene$amazebot$Main$update = F2(
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						case 'm':
-							var _p20 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p24);
-							if (_p20.ctor === 'Ok') {
+							var _p21 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$robotPositionJsonDecoder, _p25);
+							if (_p21.ctor === 'Ok') {
 								return {
 									ctor: '_Tuple2',
 									_0: _elm_lang$core$Native_Utils.update(
 										model,
 										{
-											robotPosition: _elm_lang$core$Maybe$Just(_p20._0)
+											robot: _elm_lang$core$Maybe$Just(
+												A2(_jackgene$amazebot$Main$Robot, _p21._0, true))
 										}),
 									_1: _elm_lang$core$Platform_Cmd$none
 								};
 							} else {
 								return A2(
 									_elm_lang$core$Debug$log,
-									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing move robot command: ', _p20._0),
+									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing move robot command: ', _p21._0),
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						case 'msg':
-							var _p21 = A2(
+							var _p22 = A2(
 								_elm_lang$core$Json_Decode$decodeString,
 								A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
-								_p24);
-							if (_p21.ctor === 'Ok') {
+								_p25);
+							if (_p22.ctor === 'Ok') {
 								return {
 									ctor: '_Tuple2',
 									_0: model,
-									_1: _jackgene$amazebot$Main$showMessageCmd(_p21._0)
+									_1: _jackgene$amazebot$Main$showMessageCmd(_p22._0)
 								};
 							} else {
 								return A2(
 									_elm_lang$core$Debug$log,
-									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing message alert command: ', _p21._0),
+									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing message alert command: ', _p22._0),
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						case 'log':
-							var _p22 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$consoleMessageJsonDecoder, _p24);
-							if (_p22.ctor === 'Ok') {
+							var _p23 = A2(_elm_lang$core$Json_Decode$decodeString, _jackgene$amazebot$Main$consoleMessageJsonDecoder, _p25);
+							if (_p23.ctor === 'Ok') {
 								return {
 									ctor: '_Tuple2',
 									_0: _elm_lang$core$Native_Utils.update(
 										model,
 										{
-											console: {ctor: '::', _0: _p22._0, _1: model.console}
+											console: {ctor: '::', _0: _p23._0, _1: model.console}
 										}),
 									_1: A2(
 										_elm_lang$core$Task$attempt,
@@ -14791,30 +14818,30 @@ var _jackgene$amazebot$Main$update = F2(
 							} else {
 								return A2(
 									_elm_lang$core$Debug$log,
-									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing console log command: ', _p22._0),
+									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing console log command: ', _p23._0),
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						case 'l':
-							var _p23 = A2(
+							var _p24 = A2(
 								_elm_lang$core$Json_Decode$decodeString,
 								A2(_elm_lang$core$Json_Decode$field, 'l', _elm_lang$core$Json_Decode$int),
-								_p24);
-							if (_p23.ctor === 'Ok') {
+								_p25);
+							if (_p24.ctor === 'Ok') {
 								return {
 									ctor: '_Tuple2',
 									_0: model,
-									_1: _jackgene$amazebot$Main$codeMirrorFlashLineCmd(_p23._0)
+									_1: _jackgene$amazebot$Main$codeMirrorFlashLineCmd(_p24._0)
 								};
 							} else {
 								return A2(
 									_elm_lang$core$Debug$log,
-									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing line execution command: ', _p23._0),
+									A2(_elm_lang$core$Basics_ops['++'], 'Error parsing line execution command: ', _p24._0),
 									{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 							}
 						default:
 							return A2(
 								_elm_lang$core$Debug$log,
-								A2(_elm_lang$core$Basics_ops['++'], 'Unhandled command: ', _p24),
+								A2(_elm_lang$core$Basics_ops['++'], 'Unhandled command: ', _p25),
 								{ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none});
 					}
 				} else {
