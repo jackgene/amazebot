@@ -1,6 +1,5 @@
 port module Main exposing (..)
 
--- TODO timer
 -- TODO look into why simulation (line flashes) continue to come after collision
 
 import Dom
@@ -73,6 +72,11 @@ type alias Maze =
   { finish : Point
   , wallsHistory : List (List Wall)
   }
+type alias StopWatch =
+  { startTime : Maybe Time
+  , millisSinceStart : Int
+  , active : Bool
+  }
 type ConsoleMessageType
   = StdOut
   | StdErr
@@ -87,13 +91,14 @@ type alias Model =
   , startingPosition : Maybe RobotPosition
   , robot : Maybe Robot
   , maze : Maybe Maze
+  , stopWatch : StopWatch
   , console : List ConsoleMessage
   }
 
 
 init : Request -> (Model, Cmd Msg)
 init request =
-  ( Model request request.initLang "" Nothing Nothing Nothing []
+  ( Model request request.initLang "" Nothing Nothing Nothing (StopWatch Nothing 0 False) []
   , Cmd.batch
     [ localStorageGetItemCmd (request.pathname ++ "/source." ++ request.initLang)
     , codeMirrorFromTextAreaCmd ("source", languageToMediaType request.initLang)
@@ -110,6 +115,7 @@ type Msg
   | SelectLanguage String
   | ChangeSource String
   | SaveAndRun
+  | AdvanceStopWatch Time
   | ClearConsole
   | ResetCode
   | ServerCommand String
@@ -162,6 +168,38 @@ consoleMessageJsonDecoder =
     )
     (field "m" string)
     (field "t" string)
+
+
+startStopWatch : StopWatch -> StopWatch
+startStopWatch stopWatch =
+  { stopWatch | active = True }
+
+
+stopStopWatch : StopWatch -> StopWatch
+stopStopWatch stopWatch =
+  { stopWatch | active = False }
+
+
+resetStopWatch : StopWatch -> StopWatch
+resetStopWatch stopWatch =
+  { stopWatch
+  | startTime = Nothing
+  , millisSinceStart = 0
+  }
+
+
+refreshStopWatch : Time -> StopWatch -> StopWatch
+refreshStopWatch time stopWatch =
+  case stopWatch.startTime of
+    Just startTime ->
+      { stopWatch
+      | millisSinceStart = round (time - startTime)
+      }
+    Nothing ->
+      { stopWatch
+      | startTime = Just time
+      , millisSinceStart = 0
+      }
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -221,7 +259,10 @@ update msg model =
       , Cmd.none
       )
     SaveAndRun ->
-      ( { model | robot = Maybe.map (\robotPos -> Robot robotPos False) model.startingPosition }
+      ( { model
+        | robot = Maybe.map (\robotPos -> Robot robotPos False) model.startingPosition
+        , stopWatch = resetStopWatch model.stopWatch
+        }
       , Cmd.batch
         [ localStorageSetItemCmd ("lang", model.language)
         , localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
@@ -231,6 +272,10 @@ update msg model =
     ResetCode ->
       ( { model | source = "" }
       , codeMirrorDocSetValueCmd ""
+      )
+    AdvanceStopWatch time ->
+      ( { model | stopWatch = refreshStopWatch time model.stopWatch }
+      , Cmd.none
       )
     ClearConsole ->
       ( { model | console = [] }
@@ -254,6 +299,9 @@ update msg model =
               ( { model
                 | robot = Just (Robot robotPosition False)
                 , startingPosition = Just (Maybe.withDefault robotPosition model.startingPosition)
+                , stopWatch = case model.startingPosition of
+                    Just _ -> startStopWatch model.stopWatch -- Run initialization
+                    Nothing -> model.stopWatch -- Page load initialization
                 }
               , Cmd.none
               )
@@ -262,7 +310,7 @@ update msg model =
         Ok "m" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              ( {model | robot = Just (Robot robotPosition True)}
+              ( { model | robot = Just (Robot robotPosition True) }
               , Cmd.none
               )
             Err errorMsg ->
@@ -270,7 +318,7 @@ update msg model =
         Ok "msg" ->
           case decodeString (field "m" string) json of
             Ok message ->
-              ( model
+              ( { model | stopWatch = stopStopWatch model.stopWatch }
               , showMessageCmd message
               )
             Err errorMsg ->
@@ -316,11 +364,15 @@ subscriptions model =
   Sub.batch
     ( [ codeMirrorDocValueChangedSub ChangeSource
       , localStorageGetItemSub ReceivedLocalStorageItem
-      , Time.every (45 * second) SendWebSocketKeepAlive
+      , Time.every (45 * second) SendWebSocketKeepAlive -- Heroku timeout is ~55s
       , WebSocket.listen (webSocketUrl model.request) ServerCommand
       ] ++
-      if not (mapDrawInProgress model.maze) then []
-      else [Time.every (50 * millisecond) AdvanceWallHistory]
+      ( if not (mapDrawInProgress model.maze) then []
+        else [Time.every (50 * millisecond) AdvanceWallHistory]
+      ) ++
+      ( if not model.stopWatch.active then []
+        else [Time.every (100 * millisecond) AdvanceStopWatch]
+      )
     )
 
 
@@ -362,6 +414,59 @@ wallView wall =
     []
 
 
+robotView : Maybe Robot -> List (Html Msg)
+robotView maybeRobot =
+  case maybeRobot of
+    Just {position, active} ->
+      [ div
+          [ id "robot"
+          , style
+            [ ("top", toString (mmToPixels (position.point.topMm - robotRadiusMm)) ++ "px")
+            , ("left", toString (mmToPixels (position.point.leftMm - robotRadiusMm)) ++ "px")
+            , ("transform", "rotate(" ++ toString position.orientationRad ++ "rad)")
+            , ("transition", if active then "all 400ms linear" else "none")
+            ]
+          ]
+          []
+      ]
+    Nothing ->
+      []
+
+
+toMinutes : Int -> Int
+toMinutes millis =
+  millis // 60 // 1000
+
+
+secondsInMinute : Int -> Int
+secondsInMinute millis =
+  (millis // 1000) % 60
+
+
+jiffiesInSecond : Int -> Int
+jiffiesInSecond millis =
+  (millis // 100) % 10
+
+
+stopWatchView : StopWatch -> Html Msg
+stopWatchView stopWatch =
+  let
+    millis : Int
+    millis = stopWatch.millisSinceStart
+
+    mins : String
+    mins = toString (toMinutes millis)
+
+    secs : String
+    secs =
+      String.padLeft 2 '0' (toString (secondsInMinute millis))
+
+    jifs : String
+    jifs = toString (jiffiesInSecond millis)
+  in
+    div [id "clock"] [text (mins ++ ":" ++ secs ++ "." ++ jifs)]
+
+
 mazeView : Maybe Maze -> List (Html Msg)
 mazeView maybeMaze =
   case maybeMaze of
@@ -383,28 +488,9 @@ mazeView maybeMaze =
       []
 
 
-robotView : Maybe Robot -> List (Html Msg)
-robotView maybeRobot =
-  case maybeRobot of
-    Just {position, active} ->
-      [ div
-          [ id "robot"
-          , style
-            [ ("top", toString (mmToPixels (position.point.topMm - robotRadiusMm)) ++ "px")
-            , ("left", toString (mmToPixels (position.point.leftMm - robotRadiusMm)) ++ "px")
-            , ("transform", "rotate(" ++ toString position.orientationRad ++ "rad)")
-            , ("transition", if active then "all 400ms linear" else "none")
-            ]
-          ]
-          []
-      ]
-    Nothing ->
-      []
-
-
-worldView : Maybe Robot -> Maybe Maze -> Html Msg
-worldView maybeRobot maybeMaze =
-  div [id "world"] (robotView maybeRobot ++ mazeView maybeMaze)
+worldView : Maybe Robot -> StopWatch -> Maybe Maze -> Html Msg
+worldView maybeRobot stopWatch maybeMaze =
+  div [id "world"] (stopWatchView stopWatch :: robotView maybeRobot ++ mazeView maybeMaze)
 
 
 view : Model -> Html Msg
@@ -435,7 +521,7 @@ view model =
         , button [onClick ClearConsole] [text "Clear Console"]
         , button [onClick ResetCode] [text "Reset Code"]
         ]
-    , div [id "output"] [worldView model.robot model.maze]
+    , div [id "output"] [worldView model.robot model.stopWatch model.maze]
     , div [id "console"] (List.map consoleMessageView (List.reverse model.console))
     ]
 
