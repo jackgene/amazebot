@@ -338,7 +338,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
         sendExecuteLine(execLine)
       }
       context.become(
-        running(lastDriveChangeTimeMillis, robotState, robotPosition, recentLines.enqueue(execLine), robotProgram)
+        running(
+          lastDriveChangeTimeMillis, robotState, robotPosition, recentLines.enqueue(execLine).take(50), robotProgram
+        )
       )
 
     case UpdateView =>
@@ -394,7 +396,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       }
 
     case UpdateExecuteLine =>
-      val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
+      val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue // TODO Why was this line doing "dequeue on empty queue?"
 
       for ((execLine: ExecuteLine, _) <- newRecentLines.dequeueOption) {
         sendExecuteLine(execLine)
