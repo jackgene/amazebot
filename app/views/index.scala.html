@@ -82,6 +82,14 @@
           );
         }
       );
+      app.ports.resetCodeCmd.subscribe(
+        function(key) {
+          if (window.confirm('Resets the program to the original version. All your changes will be lost. Are you sure?')) {
+            window.localStorage.removeItem(key);
+            app.ports.localStorageGetItemSub.send(null); // Forces Elm to load code from template
+          }
+        }
+      );
 
       document.cookie =
         "lastAttempted=" + location.pathname +

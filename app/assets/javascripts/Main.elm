@@ -43,6 +43,7 @@ port codeMirrorDocSetValueCmd : String -> Cmd msg
 port codeMirrorDocValueChangedSub : (String -> msg) -> Sub msg
 port codeMirrorFlashLineCmd : Int -> Cmd msg
 port showMessageCmd : String -> Cmd msg
+port resetCodeCmd : String -> Cmd msg
 
 
 -- Model
@@ -270,8 +271,8 @@ update msg model =
         ]
       )
     ResetCode ->
-      ( { model | source = "" }
-      , codeMirrorDocSetValueCmd ""
+      ( model
+      , resetCodeCmd (model.request.pathname ++ "/source." ++ model.language)
       )
     AdvanceStopWatch time ->
       ( { model | stopWatch = refreshStopWatch time model.stopWatch }

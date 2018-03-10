@@ -10198,6 +10198,11 @@ var _jackgene$amazebot$Main$showMessageCmd = _elm_lang$core$Native_Platform.outg
 	function (v) {
 		return v;
 	});
+var _jackgene$amazebot$Main$resetCodeCmd = _elm_lang$core$Native_Platform.outgoingPort(
+	'resetCodeCmd',
+	function (v) {
+		return v;
+	});
 var _jackgene$amazebot$Main$Request = F4(
 	function (a, b, c, d) {
 		return {secure: a, host: b, pathname: c, initLang: d};
@@ -10826,10 +10831,12 @@ var _jackgene$amazebot$Main$update = F2(
 			case 'ResetCode':
 				return {
 					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{source: ''}),
-					_1: _jackgene$amazebot$Main$codeMirrorDocSetValueCmd('')
+					_0: model,
+					_1: _jackgene$amazebot$Main$resetCodeCmd(
+						A2(
+							_elm_lang$core$Basics_ops['++'],
+							model.request.pathname,
+							A2(_elm_lang$core$Basics_ops['++'], '/source.', model.language)))
 				};
 			case 'AdvanceStopWatch':
 				return {
