@@ -1,7 +1,5 @@
 port module Main exposing (..)
 
--- TODO look into why simulation (line flashes) continue to come after collision
-
 import Dom
 import Dom.Scroll
 import Html exposing (..)
@@ -375,10 +373,10 @@ subscriptions model =
       , WebSocket.listen (webSocketUrl model.request) ServerCommand
       ] ++
       ( if not (mapDrawInProgress model.maze) then []
-        else [Time.every (50 * millisecond) AdvanceWallHistory]
+        else [ Time.every (50 * millisecond) AdvanceWallHistory ]
       ) ++
       ( if not model.stopWatch.active then []
-        else [Time.every (100 * millisecond) AdvanceStopWatch]
+        else [ Time.every (100 * millisecond) AdvanceStopWatch ]
       )
     )
 
@@ -404,7 +402,7 @@ consoleMessageView message =
         StdOut -> [ class "stdout" ]
         StdErr -> [ class "stderr" ]
     )
-    [text message.text]
+    [ text message.text ]
 
 
 wallView : Wall -> Html Msg
@@ -412,11 +410,11 @@ wallView wall =
   div
     [ class "wall"
     , style
-        [ ("top", toString (mmToPixels wall.topLeft.topMm) ++ "px")
-        , ("left", toString (mmToPixels wall.topLeft.leftMm) ++ "px")
-        , ("height", toString (mmToPixels wall.bottomRightFromTopLeft.topMm) ++ "px")
-        , ("width", toString (mmToPixels wall.bottomRightFromTopLeft.leftMm) ++ "px")
-        ]
+      [ ("top", toString (mmToPixels wall.topLeft.topMm) ++ "px")
+      , ("left", toString (mmToPixels wall.topLeft.leftMm) ++ "px")
+      , ("height", toString (mmToPixels wall.bottomRightFromTopLeft.topMm) ++ "px")
+      , ("width", toString (mmToPixels wall.bottomRightFromTopLeft.leftMm) ++ "px")
+      ]
     ]
     []
 
@@ -426,15 +424,15 @@ robotView maybeRobot =
   case maybeRobot of
     Just {position, active} ->
       [ div
-          [ id "robot"
-          , style
-            [ ("top", toString (mmToPixels (position.point.topMm - robotRadiusMm)) ++ "px")
-            , ("left", toString (mmToPixels (position.point.leftMm - robotRadiusMm)) ++ "px")
-            , ("transform", "rotate(" ++ toString position.orientationRad ++ "rad)")
-            , ("transition", if active then "all 400ms linear" else "none")
-            ]
+        [ id "robot"
+        , style
+          [ ("top", toString (mmToPixels (position.point.topMm - robotRadiusMm)) ++ "px")
+          , ("left", toString (mmToPixels (position.point.leftMm - robotRadiusMm)) ++ "px")
+          , ("transform", "rotate(" ++ toString position.orientationRad ++ "rad)")
+          , ("transition", if active then "all 400ms linear" else "none")
           ]
-          []
+        ]
+        []
       ]
     Nothing ->
       []
@@ -471,7 +469,7 @@ stopWatchView stopWatch =
     jifs : String
     jifs = toString (jiffiesInSecond millis)
   in
-    div [id "clock"] [text (mins ++ ":" ++ secs ++ "." ++ jifs)]
+    div [ id "clock" ] [ text (mins ++ ":" ++ secs ++ "." ++ jifs) ]
 
 
 mazeView : Maybe Maze -> List (Html Msg)
@@ -480,9 +478,10 @@ mazeView maybeMaze =
     Just maze ->
       div
         [ id "finish"
-        , style [ ("top", toString (mmToPixels (maze.finish.topMm - finishZoneRadiusMm)) ++ "px")
-                , ("left", toString (mmToPixels (maze.finish.leftMm - finishZoneRadiusMm)) ++ "px")
-                ]
+        , style
+          [ ("top", toString (mmToPixels (maze.finish.topMm - finishZoneRadiusMm)) ++ "px")
+          , ("left", toString (mmToPixels (maze.finish.leftMm - finishZoneRadiusMm)) ++ "px")
+          ]
         ]
         [ text "move robot here" ]
       ::
@@ -497,39 +496,45 @@ mazeView maybeMaze =
 
 worldView : Maybe Robot -> StopWatch -> Maybe Maze -> Html Msg
 worldView maybeRobot stopWatch maybeMaze =
-  div [id "world"] (stopWatchView stopWatch :: robotView maybeRobot ++ mazeView maybeMaze)
+  div [ id "world" ] (stopWatchView stopWatch :: robotView maybeRobot ++ mazeView maybeMaze)
 
 
 view : Model -> Html Msg
 view model =
   div []
-    [ ul [id "navigation"]
-        [ li [] [a [href "/maze/level0"] [text "Level 0"]]
-        , li [] [a [href "/maze/level1"] [text "Level 1"]]
-        , li [] [a [href "/maze/level2"] [text "Level 2"]]
-        , li [] [a [href "/maze/level3"] [text "Level 3"]]
-        , li [] [a [href "/maze/level4"] [text "Level 4"]]
-        , li [] [a [href "/maze/random"] [text "Random Maze"]]
+    [ ul [ id "navigation" ]
+        [ li [] [ a [ href "/maze/level0" ] [ text "Level 0" ] ]
+        , li [] [ a [ href "/maze/level1" ] [ text "Level 1" ] ]
+        , li [] [ a [ href "/maze/level2" ] [ text "Level 2" ] ]
+        , li [] [ a [ href "/maze/level3" ] [ text "Level 3" ] ]
+        , li [] [ a [ href "/maze/level4" ] [ text "Level 4" ] ]
+        , li [] [ a [ href "/maze/random" ] [ text "Random Maze" ] ]
         ]
-    , div [id "input"]
+    , div [ id "input" ]
         [ div []
-          [textarea [id "source"] [text model.source]]
+          [ textarea [ id "source" ] [ text model.source ] ]
         , br [] []
         , select
-            [onInput SelectLanguage]
-            [ option
-                [value "java", selected (model.language /= "py")]
-                [text "Java 8"]
-            , option
-                [value "py", selected (model.language == "py")]
-                [text "Python 2.7"]
-            ]
-        , button [onClick SaveAndRun] [text "Save & Run"]
-        , button [onClick ClearConsole] [text "Clear Console"]
-        , button [onClick ResetCode] [text "Reset Code"]
+          [ onInput SelectLanguage ]
+          [ option
+            [ value "java", selected (model.language /= "py") ]
+            [ text "Java 8" ]
+          , option
+            [ value "py", selected (model.language == "py") ]
+            [ text "Python 2.7" ]
+          ]
+        , button
+          [ onClick SaveAndRun ]
+          [ text "Save & Run" ]
+        , button
+          [ onClick ClearConsole ]
+          [ text "Clear Console" ]
+        , button
+          [ onClick ResetCode ]
+          [ text "Reset Code" ]
         ]
-    , div [id "output"] [worldView model.robot model.stopWatch model.maze]
-    , div [id "console"] (List.map consoleMessageView (List.reverse model.console))
+    , div [ id "output" ] [ worldView model.robot model.stopWatch model.maze ]
+    , div [ id "console" ] (List.map consoleMessageView (List.reverse model.console))
     ]
 
 
