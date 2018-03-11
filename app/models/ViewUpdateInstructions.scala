@@ -41,12 +41,13 @@ object ViewUpdateInstructions {
     (JsPath \ "c").write[String] and
     (JsPath \ "t").write[Double] and
     (JsPath \ "l").write[Double] and
-    (JsPath \ "o").write[Double]
+    (JsPath \ "o").write[Double] and
+    (JsPath \ "run").write[Boolean]
   )(
     {
-      case InitializeRobot(position: RobotPosition) =>
-        ("init", position.topMm, position.leftMm, position.orientationRad)
-    }: InitializeRobot => (String,Double,Double,Double)
+      case InitializeRobot(position: RobotPosition, run: Boolean) =>
+        ("init", position.topMm, position.leftMm, position.orientationRad, run)
+    }: InitializeRobot => (String,Double,Double,Double,Boolean)
   )
 
   implicit val printToConsoleWrites: Writes[PrintToConsole] = (

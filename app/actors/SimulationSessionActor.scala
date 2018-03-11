@@ -32,7 +32,7 @@ object SimulationSessionActor {
 
   // Outgoing messages
   case class DrawMaze(finish: Point, wallsHistory: List[Set[Maze.Wall]])
-  case class InitializeRobot(position: RobotPosition)
+  case class InitializeRobot(position: RobotPosition, run: Boolean)
   case class PrintToConsole(messageType: ConsoleMessageType, message: String)
 
   sealed abstract class ConsoleMessageType
@@ -90,7 +90,8 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
               topMm = maze.startPoint.topMm,
               leftMm = maze.startPoint.leftMm,
               orientationRad = maze.startOrientationRad
-            )
+            ),
+            run = true
           )
         )
 
@@ -141,7 +142,8 @@ class SimulationSessionActor(webSocketOut: ActorRef, maze: Maze) extends Actor w
         topMm = maze.startPoint.topMm,
         leftMm = maze.startPoint.leftMm,
         orientationRad = maze.startOrientationRad
-      )
+      ),
+      run = false
     )
   )
 }

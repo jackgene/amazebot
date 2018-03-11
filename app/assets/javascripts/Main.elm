@@ -8,7 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (class, href, id, selected, style, value)
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode exposing (decodeString, float, field, int, list, string)
+import Json.Decode exposing (bool, decodeString, float, field, int, list, string)
 import Json.Encode
 import Task
 import Time exposing (Time, millisecond, second)
@@ -297,13 +297,19 @@ update msg model =
         Ok "init" ->
           case (decodeString robotPositionJsonDecoder json) of
             Ok robotPosition ->
-              ( { model
-                | robot = Just (Robot robotPosition False)
-                , startingPosition = Just (Maybe.withDefault robotPosition model.startingPosition)
-                , stopWatch = case model.startingPosition of
-                    Just _ -> startStopWatch model.stopWatch -- Run initialization
-                    Nothing -> model.stopWatch -- Page load initialization
-                }
+              ( case decodeString (field "run" bool) json of
+                  Ok True ->
+                    { model
+                    | robot = Just (Robot robotPosition False)
+                    , stopWatch = startStopWatch model.stopWatch
+                    }
+                  Ok False ->
+                    { model
+                    | robot = Just (Robot robotPosition False)
+                    , startingPosition = Just robotPosition
+                    }
+                  Err errorMsg ->
+                    Debug.log ("Error parsing robot initialization command for run: " ++ errorMsg) model
               , Cmd.none
               )
             Err errorMsg ->
