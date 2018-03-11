@@ -371,7 +371,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
             case (false, true) =>
               Seq(
                 Json.toJson(MoveRobot(newRobotPosition)),
-                Json.toJson(ShowMessage("You have won!"))
+                Json.toJson(ShowMessage("Congratulations! You have solved the maze!"))
               )
 
             case (false, false) => Seq()
