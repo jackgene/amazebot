@@ -305,6 +305,7 @@ update msg model =
                     { model
                     | robot = Just (Robot robotPosition False)
                     , startingPosition = Just robotPosition
+                    , stopWatch = resetStopWatch (stopStopWatch model.stopWatch)
                     }
                   Err errorMsg ->
                     Debug.log ("Error parsing robot initialization command for run: " ++ errorMsg) model

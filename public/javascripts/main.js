@@ -10916,7 +10916,9 @@ var _jackgene$amazebot$Main$update = F2(
 													{
 														robot: _elm_lang$core$Maybe$Just(
 															A2(_jackgene$amazebot$Main$Robot, _p22, false)),
-														startingPosition: _elm_lang$core$Maybe$Just(_p22)
+														startingPosition: _elm_lang$core$Maybe$Just(_p22),
+														stopWatch: _jackgene$amazebot$Main$resetStopWatch(
+															_jackgene$amazebot$Main$stopStopWatch(model.stopWatch))
 													});
 											}
 										} else {
