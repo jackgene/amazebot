@@ -12,7 +12,6 @@ case class Point(topMm: Int, leftMm: Int) {
   assert(leftMm >= 0, "leftMm must be non-negative")
 }
 object Maze {
-  // TODO consider making the size adjustable
   val HeightMm: Int = 5000
   val WidthMm: Int = 5000
 
@@ -264,7 +263,7 @@ object Maze {
             Point(startTop * CellHeightMm + CellHeightMm / 2, startLeft * CellWidthMm + CellWidthMm / 2),
             Random.nextInt(4) * math.Pi / 2,
             Point(finishTop * CellHeightMm + CellHeightMm / 2, finishLeft * CellWidthMm + CellWidthMm / 2),
-            wallsHistory(finishCell :: Nil, cells, initialWalls :: Nil)
+            wallsHistory(finishCell :: Nil, cells - finishCell, initialWalls :: Nil)
           )
       }.
       get
