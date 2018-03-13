@@ -149,25 +149,14 @@ case object Python extends Language {
   Logger.info("Warming up Jython")
   PythonInterpreter.initialize(null, null, Array("python", "-W", "ignore"))
   new PythonInterpreter().exec(
-    """from time import sleep
+    """from math import log1p
+      |from time import sleep
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
-      |try:
-      |  print "Warming up..."
-      |except:
-      |  pass
-      |
-      |try:
-      |  robot.driveDirect(500,500)
-      |except:
-      |  pass
-      |
-      |try:
-      |  robot.drive(500,500)
-      |except:
-      |  pass
-      |
-      |sleep(0.1)""".stripMargin
+      |[log1p(n) for n in range(0,1000000)]
+      |print "Jython warm up complete..."
+      |sleep(0.2)
+      |""".stripMargin
   )
 }
