@@ -153,6 +153,21 @@ case object Python extends Language {
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
-      |sleep(10)""".stripMargin
+      |try:
+      |  print "Warming up..."
+      |except:
+      |  pass
+      |
+      |try:
+      |  robot.driveDirect(500,500)
+      |except:
+      |  pass
+      |
+      |try:
+      |  robot.drive(500,500)
+      |except:
+      |  pass
+      |
+      |sleep(0.1)""".stripMargin
   )
 }
