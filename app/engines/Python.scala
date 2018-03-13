@@ -153,6 +153,7 @@ case object Python extends Language {
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
+      |[i * 2 for i in range(0,100)]
       |sleep(0.1)""".stripMargin
   )
 }
