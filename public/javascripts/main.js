@@ -10770,7 +10770,7 @@ var _jackgene$amazebot$Main$update = F2(
 										A2(
 											_elm_lang$core$Basics_ops['++'],
 											model.request.pathname,
-											A2(_elm_lang$core$Basics_ops['++'], '/source.', model.language))),
+											A2(_elm_lang$core$Basics_ops['++'], '/source.', _p16))),
 									_1: {ctor: '[]'}
 								}
 							}

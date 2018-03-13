@@ -250,7 +250,7 @@ update msg model =
           , languageToMediaType language
           )
         , localStorageSetItemCmd ("lang", language)
-        , localStorageGetItemCmd (model.request.pathname ++ "/source." ++ model.language)
+        , localStorageGetItemCmd (model.request.pathname ++ "/source." ++ language)
         ]
       )
     ChangeSource source ->
