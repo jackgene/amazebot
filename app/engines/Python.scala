@@ -149,14 +149,12 @@ case object Python extends Language {
   Logger.info("Warming up Jython")
   PythonInterpreter.initialize(null, null, Array("python", "-W", "ignore"))
   new PythonInterpreter().exec(
-    """from math import log1p
-      |from time import sleep
+    """from time import sleep
       |from org.jointheleague.ecolban.rpirobot import SimpleIRobot
       |
       |robot = SimpleIRobot()
-      |[log1p(n) for n in range(0,1000000)]
+      |sleep(0.1)
       |print "Jython warm up complete..."
-      |sleep(0.2)
       |""".stripMargin
   )
 }

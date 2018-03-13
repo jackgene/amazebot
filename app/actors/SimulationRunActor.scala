@@ -344,7 +344,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       )
 
     case UpdateView =>
-      if (robotProgram.cpuTimePercent < 0.05 || robotProgram.runningTimeMillis < 1000) {
+      if (robotProgram.cpuTimePercent < 0.05 || robotProgram.runningTimeMillis < 5000) {
         val newTimeMillis = System.currentTimeMillis()
         val newRobotPosition: RobotPosition =
           moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
