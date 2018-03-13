@@ -11,6 +11,7 @@ libraryDependencies ++= Seq(
   "org.codehaus.janino" % "janino" % "3.0.7",
   "org.ow2.asm" % "asm-debug-all" % "5.2",
   "org.python" % "jython-standalone" % "2.7.1",
+  "org.webjars" % "codemirror" % "5.33.0",
   ws
 )
 
