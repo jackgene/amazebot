@@ -106,42 +106,34 @@ case object Python extends Language {
 
       case Failure(_) => source // Just pass the original and have it report error
     }
-    val byteCode: Array[Byte] = PythonCompiler.compileSource(
-      "script", new ByteArrayInputStream(scriptToRun.getBytes("UTF-8")), "script$py"
-    )
-    val main: Method = BytecodeLoader.
-      makeClass("script$py", byteCode).
-      getMethod("main", classOf[Array[String]])
 
     () => Try[Unit] {
-      main.invoke(null, Array[String]())
+      new PythonInterpreter().exec(scriptToRun)
     }.recover {
-      case e: InvocationTargetException => e.getCause match {
-        // Python exceptions with cause (typically from Java code?)
-        case e: PyException if e.getCause != null =>
-          throw e.getCause
+      // Python exceptions with cause (typically from Java code?)
+      case e: PyException if e.getCause != null =>
+        throw e.getCause
 
-        // Normal Python exceptions
-        case e: PyException => e.value.toString match {
-          case ExitCodeExtractor(status) =>
-            throw ExitTrappedException(status.toInt)
+      // Normal Python exceptions
+      case e: PyException => e.value.toString match {
+        case ExitCodeExtractor(status) =>
+          throw ExitTrappedException(status.toInt)
 
-          case "KeyboardInterrupt('interrupted sleep',)" | "java.lang.ClassCastException: java.lang.InterruptedException cannot be cast to java.lang.ClassNotFoundException" =>
-            throw new InterruptedException
+        case "KeyboardInterrupt('interrupted sleep',)" | "java.lang.ClassCastException: java.lang.InterruptedException cannot be cast to java.lang.ClassNotFoundException" =>
+          throw new InterruptedException
 
-          case "java.lang.ThreadDeath" =>
-            throw new ThreadDeath
+        case "java.lang.ThreadDeath" =>
+          throw new ThreadDeath
 
-          case _ =>
-            new PyException(
-              Py.None,
-              e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
-            )
-            throw e
-        }
-
-        case other: Throwable => throw other
+        case _ =>
+          new PyException(
+            Py.None,
+            e.toString.replaceAll(s"""${instrumentFuncName}\\([0-9]+\\);""", "")
+          )
+          throw e
       }
+
+      case other: Throwable => throw other
     }
   }
 
