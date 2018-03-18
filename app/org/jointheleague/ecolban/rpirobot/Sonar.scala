@@ -5,9 +5,9 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, TimeoutException}
 
 /**
   * Simulated Sonar.
@@ -30,12 +30,17 @@ class Sonar {
     }
 
     directionRadOpt.map { directionRad: Double =>
-      Await.result(
-        (simulationRun ? SimulationRunActor.SonarPing(directionRad)).map {
-          case SimulationRunActor.SonarPong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
-        },
-        1.second
-      )
+      try {
+        Await.result(
+          (simulationRun ? SimulationRunActor.SonarPing(directionRad)).map {
+            case SimulationRunActor.SonarPong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
+          },
+          1.second
+        )
+      } catch {
+        // May timeout if simulation has terminated
+        case _: TimeoutException => -1
+      }
     }.
     getOrElse(-1)
   }
