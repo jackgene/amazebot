@@ -20,11 +20,14 @@ libraryDependencies += scalaVersion("org.scala-lang" % "scala-compiler" % _ ).va
 lazy val elmMake = taskKey[Seq[File]]("elm-make")
 
 elmMake := {
+  val debugFlag: String =
+    if (sys.props.getOrElse("elm.debug", "false").toLowerCase != "true") ""
+    else "--debug"
   Seq(
     "bash", "-c",
     "elm-make app/assets/javascripts/Main.elm " +
     "--output public/javascripts/main.js " +
-    "--yes --warn"
+    s"--yes ${debugFlag} --warn"
   ).! match {
     case 0 =>
       streams.value.log.success("elm-make completed.")

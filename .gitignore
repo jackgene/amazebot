@@ -16,3 +16,4 @@ dist
 /.settings
 hk-debug
 elm-stuff
+.jvmopts
