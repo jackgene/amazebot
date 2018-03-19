@@ -9,7 +9,7 @@
 // To use (or call) a method, just type the method name
 // followed by "()". You can see an example on line 20.
 //
-// Can understand how the provided methods work?
+// Try to understand how the provided methods work.
 //
 // Write your code in the "go()" method on line 22.
 

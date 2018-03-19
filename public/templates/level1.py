@@ -9,7 +9,7 @@
 # To use (or call) a function, just type the function name
 # followed by "()". You can see an example on line 43.
 #
-# Can understand how the provided functions work?
+# Try to understand how the provided functions work.
 #
 # Write your code at he bottom of the file.
 
