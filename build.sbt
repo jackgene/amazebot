@@ -45,4 +45,3 @@ elmMake := {
 }
 
 sourceGenerators in Assets += elmMake.taskValue
-
