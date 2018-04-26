@@ -85,8 +85,8 @@ type alias ConsoleMessage =
   }
 type alias Model =
   { request : Request
-  , language: String
-  , source: String
+  , language : String
+  , source : String
   , startingPosition : Maybe RobotPosition
   , robot : Maybe Robot
   , maze : Maybe Maze
