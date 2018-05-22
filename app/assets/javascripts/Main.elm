@@ -29,7 +29,7 @@ loadCodeTemplate location language =
 
 webSocketUrl : Location -> String
 webSocketUrl location =
-  (if location.protocol == "https" then "wss" else "ws") ++ "://" ++
+  (if location.protocol == "https:" then "wss" else "ws") ++ "://" ++
   location.host ++ location.pathname ++ "/simulation" ++
   location.search
 

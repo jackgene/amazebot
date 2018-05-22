@@ -10538,7 +10538,7 @@ var _jackgene$amazebot$Main$saveAndRunEncoder = function (model) {
 var _jackgene$amazebot$Main$webSocketUrl = function (location) {
 	return A2(
 		_elm_lang$core$Basics_ops['++'],
-		_elm_lang$core$Native_Utils.eq(location.protocol, 'https') ? 'wss' : 'ws',
+		_elm_lang$core$Native_Utils.eq(location.protocol, 'https:') ? 'wss' : 'ws',
 		A2(
 			_elm_lang$core$Basics_ops['++'],
 			'://',
