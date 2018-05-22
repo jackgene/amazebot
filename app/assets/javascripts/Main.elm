@@ -1,6 +1,5 @@
 port module Main exposing (..)
 
-import Dom
 import Dom.Scroll
 import Html exposing (..)
 import Html.Attributes exposing (class, href, id, selected, style, value)
@@ -8,6 +7,7 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (bool, decodeString, float, field, int, list, string)
 import Json.Encode
+import Navigation exposing (Location)
 import Task
 import Time exposing (Time, millisecond, second)
 import WebSocket
@@ -20,16 +20,18 @@ languageToMediaType language =
     _ -> "text/x-java"
 
 
-loadCodeTemplate : Request -> String -> Cmd Msg
-loadCodeTemplate request language =
+loadCodeTemplate : Location -> String -> Cmd Msg
+loadCodeTemplate location language =
   Http.send
     ReceivedTemplatedSource
-    (Http.getString ("//" ++ request.host ++ request.pathname ++ "/template." ++ language))
+    (Http.getString ("//" ++ location.host ++ location.pathname ++ "/template." ++ language))
 
 
-webSocketUrl : Request -> String
-webSocketUrl request =
-  (if request.secure then "wss" else "ws") ++ "://" ++ request.host ++ request.pathname ++ "/simulation"
+webSocketUrl : Location -> String
+webSocketUrl location =
+  (if location.protocol == "https" then "wss" else "ws") ++ "://" ++
+  location.host ++ location.pathname ++ "/simulation" ++
+  location.search
 
 
 port localStorageSetItemCmd : (String, String) -> Cmd msg
@@ -45,11 +47,8 @@ port resetCodeCmd : String -> Cmd msg
 
 
 -- Model
-type alias Request =
-  { secure : Bool
-  , host : String
-  , pathname : String
-  , initLang : String
+type alias Flags =
+  { initLang : String
   }
 type alias Point =
   { topMm : Float
@@ -84,8 +83,8 @@ type alias ConsoleMessage =
   , text : String
   }
 type alias Model =
-  { request : Request
-  , language : String
+  { language : String
+  , location : Location
   , source : String
   , startingPosition : Maybe RobotPosition
   , robot : Maybe Robot
@@ -95,12 +94,12 @@ type alias Model =
   }
 
 
-init : Request -> (Model, Cmd Msg)
-init request =
-  ( Model request request.initLang "" Nothing Nothing Nothing (StopWatch Nothing 0 False) []
+init : Flags -> Location -> (Model, Cmd Msg)
+init flags location =
+  ( Model flags.initLang location "" Nothing Nothing Nothing (StopWatch Nothing 0 False) []
   , Cmd.batch
-    [ localStorageGetItemCmd (request.pathname ++ "/source." ++ request.initLang)
-    , codeMirrorFromTextAreaCmd ("source", languageToMediaType request.initLang)
+    [ localStorageGetItemCmd (location.pathname ++ "/source." ++ flags.initLang)
+    , codeMirrorFromTextAreaCmd ("source", languageToMediaType flags.initLang)
     ]
   )
 
@@ -119,7 +118,7 @@ type Msg
   | ResetCode
   | ServerCommand String
   | SendWebSocketKeepAlive Time
-  | ConsoleScrolled (Result Dom.Error ())
+  | NoOp
 
 
 saveAndRunEncoder : Model -> Json.Encode.Value
@@ -211,7 +210,7 @@ update msg model =
           , codeMirrorDocSetValueCmd source
           )
         Nothing ->
-          (model, loadCodeTemplate model.request model.language)
+          (model, loadCodeTemplate model.location model.language)
     ReceivedTemplatedSource result ->
       case result of
         Ok source ->
@@ -250,7 +249,7 @@ update msg model =
           , languageToMediaType language
           )
         , localStorageSetItemCmd ("lang", language)
-        , localStorageGetItemCmd (model.request.pathname ++ "/source." ++ language)
+        , localStorageGetItemCmd (model.location.pathname ++ "/source." ++ language)
         ]
       )
     ChangeSource source ->
@@ -264,13 +263,13 @@ update msg model =
         }
       , Cmd.batch
         [ localStorageSetItemCmd ("lang", model.language)
-        , localStorageSetItemCmd ((model.request.pathname ++ "/source." ++ model.language), model.source)
-        , WebSocket.send (webSocketUrl model.request) (Json.Encode.encode 0 (saveAndRunEncoder model))
+        , localStorageSetItemCmd ((model.location.pathname ++ "/source." ++ model.language), model.source)
+        , WebSocket.send (webSocketUrl model.location) (Json.Encode.encode 0 (saveAndRunEncoder model))
         ]
       )
     ResetCode ->
       ( model
-      , resetCodeCmd (model.request.pathname ++ "/source." ++ model.language)
+      , resetCodeCmd (model.location.pathname ++ "/source." ++ model.language)
       )
     AdvanceStopWatch time ->
       ( { model | stopWatch = refreshStopWatch time model.stopWatch }
@@ -333,7 +332,7 @@ update msg model =
           case decodeString consoleMessageJsonDecoder json of
             Ok consoleMessage ->
               ( { model | console = consoleMessage :: model.console }
-              , Task.attempt ConsoleScrolled (Dom.Scroll.toBottom "console")
+              , Task.attempt (always NoOp) (Dom.Scroll.toBottom "console")
               )
             Err errorMsg ->
               Debug.log ("Error parsing console log command: " ++ errorMsg) (model, Cmd.none)
@@ -351,9 +350,9 @@ update msg model =
           Debug.log ("Error parsing WebSocket command JSON: " ++ errorMsg) (model, Cmd.none)
     SendWebSocketKeepAlive _ ->
       ( model
-      , WebSocket.send (webSocketUrl model.request) "{}"
+      , WebSocket.send (webSocketUrl model.location) "{}"
       )
-    ConsoleScrolled _ ->
+    NoOp ->
       ( model, Cmd.none ) -- No-op
 
 
@@ -371,7 +370,7 @@ subscriptions model =
     ( [ codeMirrorDocValueChangedSub ChangeSource
       , localStorageGetItemSub ReceivedLocalStorageItem
       , Time.every (45 * second) SendWebSocketKeepAlive -- Heroku timeout is ~55s
-      , WebSocket.listen (webSocketUrl model.request) ServerCommand
+      , WebSocket.listen (webSocketUrl model.location) ServerCommand
       ] ++
       ( if not (mapDrawInProgress model.maze) then []
         else [ Time.every (50 * millisecond) AdvanceWallHistory ]
@@ -539,9 +538,10 @@ view model =
     ]
 
 
-main : Program Request Model Msg
+main : Program Flags Model Msg
 main =
-  Html.programWithFlags
+  Navigation.programWithFlags
+    (always NoOp)
     { init = init
     , view = view
     , update = update

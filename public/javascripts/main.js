@@ -6362,6 +6362,9 @@ var _elm_lang$dom$Dom$NotFound = function (a) {
 	return {ctor: 'NotFound', _0: a};
 };
 
+var _elm_lang$dom$Dom_LowLevel$onWindow = _elm_lang$dom$Native_Dom.onWindow;
+var _elm_lang$dom$Dom_LowLevel$onDocument = _elm_lang$dom$Native_Dom.onDocument;
+
 var _elm_lang$dom$Dom_Size$width = _elm_lang$dom$Native_Dom.width;
 var _elm_lang$dom$Dom_Size$height = _elm_lang$dom$Native_Dom.height;
 var _elm_lang$dom$Dom_Size$VisibleContentWithBordersAndMargins = {ctor: 'VisibleContentWithBordersAndMargins'};
@@ -9246,6 +9249,408 @@ var _elm_lang$http$Http$StringPart = F2(
 	});
 var _elm_lang$http$Http$stringPart = _elm_lang$http$Http$StringPart;
 
+var _elm_lang$navigation$Native_Navigation = function() {
+
+
+// FAKE NAVIGATION
+
+function go(n)
+{
+	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
+	{
+		if (n !== 0)
+		{
+			history.go(n);
+		}
+		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
+	});
+}
+
+function pushState(url)
+{
+	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
+	{
+		history.pushState({}, '', url);
+		callback(_elm_lang$core$Native_Scheduler.succeed(getLocation()));
+	});
+}
+
+function replaceState(url)
+{
+	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
+	{
+		history.replaceState({}, '', url);
+		callback(_elm_lang$core$Native_Scheduler.succeed(getLocation()));
+	});
+}
+
+
+// REAL NAVIGATION
+
+function reloadPage(skipCache)
+{
+	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
+	{
+		document.location.reload(skipCache);
+		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
+	});
+}
+
+function setLocation(url)
+{
+	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
+	{
+		try
+		{
+			window.location = url;
+		}
+		catch(err)
+		{
+			// Only Firefox can throw a NS_ERROR_MALFORMED_URI exception here.
+			// Other browsers reload the page, so let's be consistent about that.
+			document.location.reload(false);
+		}
+		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
+	});
+}
+
+
+// GET LOCATION
+
+function getLocation()
+{
+	var location = document.location;
+
+	return {
+		href: location.href,
+		host: location.host,
+		hostname: location.hostname,
+		protocol: location.protocol,
+		origin: location.origin,
+		port_: location.port,
+		pathname: location.pathname,
+		search: location.search,
+		hash: location.hash,
+		username: location.username,
+		password: location.password
+	};
+}
+
+
+// DETECT IE11 PROBLEMS
+
+function isInternetExplorer11()
+{
+	return window.navigator.userAgent.indexOf('Trident') !== -1;
+}
+
+
+return {
+	go: go,
+	setLocation: setLocation,
+	reloadPage: reloadPage,
+	pushState: pushState,
+	replaceState: replaceState,
+	getLocation: getLocation,
+	isInternetExplorer11: isInternetExplorer11
+};
+
+}();
+
+var _elm_lang$navigation$Navigation$replaceState = _elm_lang$navigation$Native_Navigation.replaceState;
+var _elm_lang$navigation$Navigation$pushState = _elm_lang$navigation$Native_Navigation.pushState;
+var _elm_lang$navigation$Navigation$go = _elm_lang$navigation$Native_Navigation.go;
+var _elm_lang$navigation$Navigation$reloadPage = _elm_lang$navigation$Native_Navigation.reloadPage;
+var _elm_lang$navigation$Navigation$setLocation = _elm_lang$navigation$Native_Navigation.setLocation;
+var _elm_lang$navigation$Navigation_ops = _elm_lang$navigation$Navigation_ops || {};
+_elm_lang$navigation$Navigation_ops['&>'] = F2(
+	function (task1, task2) {
+		return A2(
+			_elm_lang$core$Task$andThen,
+			function (_p0) {
+				return task2;
+			},
+			task1);
+	});
+var _elm_lang$navigation$Navigation$notify = F3(
+	function (router, subs, location) {
+		var send = function (_p1) {
+			var _p2 = _p1;
+			return A2(
+				_elm_lang$core$Platform$sendToApp,
+				router,
+				_p2._0(location));
+		};
+		return A2(
+			_elm_lang$navigation$Navigation_ops['&>'],
+			_elm_lang$core$Task$sequence(
+				A2(_elm_lang$core$List$map, send, subs)),
+			_elm_lang$core$Task$succeed(
+				{ctor: '_Tuple0'}));
+	});
+var _elm_lang$navigation$Navigation$cmdHelp = F3(
+	function (router, subs, cmd) {
+		var _p3 = cmd;
+		switch (_p3.ctor) {
+			case 'Jump':
+				return _elm_lang$navigation$Navigation$go(_p3._0);
+			case 'New':
+				return A2(
+					_elm_lang$core$Task$andThen,
+					A2(_elm_lang$navigation$Navigation$notify, router, subs),
+					_elm_lang$navigation$Navigation$pushState(_p3._0));
+			case 'Modify':
+				return A2(
+					_elm_lang$core$Task$andThen,
+					A2(_elm_lang$navigation$Navigation$notify, router, subs),
+					_elm_lang$navigation$Navigation$replaceState(_p3._0));
+			case 'Visit':
+				return _elm_lang$navigation$Navigation$setLocation(_p3._0);
+			default:
+				return _elm_lang$navigation$Navigation$reloadPage(_p3._0);
+		}
+	});
+var _elm_lang$navigation$Navigation$killPopWatcher = function (popWatcher) {
+	var _p4 = popWatcher;
+	if (_p4.ctor === 'Normal') {
+		return _elm_lang$core$Process$kill(_p4._0);
+	} else {
+		return A2(
+			_elm_lang$navigation$Navigation_ops['&>'],
+			_elm_lang$core$Process$kill(_p4._0),
+			_elm_lang$core$Process$kill(_p4._1));
+	}
+};
+var _elm_lang$navigation$Navigation$onSelfMsg = F3(
+	function (router, location, state) {
+		return A2(
+			_elm_lang$navigation$Navigation_ops['&>'],
+			A3(_elm_lang$navigation$Navigation$notify, router, state.subs, location),
+			_elm_lang$core$Task$succeed(state));
+	});
+var _elm_lang$navigation$Navigation$subscription = _elm_lang$core$Native_Platform.leaf('Navigation');
+var _elm_lang$navigation$Navigation$command = _elm_lang$core$Native_Platform.leaf('Navigation');
+var _elm_lang$navigation$Navigation$Location = function (a) {
+	return function (b) {
+		return function (c) {
+			return function (d) {
+				return function (e) {
+					return function (f) {
+						return function (g) {
+							return function (h) {
+								return function (i) {
+									return function (j) {
+										return function (k) {
+											return {href: a, host: b, hostname: c, protocol: d, origin: e, port_: f, pathname: g, search: h, hash: i, username: j, password: k};
+										};
+									};
+								};
+							};
+						};
+					};
+				};
+			};
+		};
+	};
+};
+var _elm_lang$navigation$Navigation$State = F2(
+	function (a, b) {
+		return {subs: a, popWatcher: b};
+	});
+var _elm_lang$navigation$Navigation$init = _elm_lang$core$Task$succeed(
+	A2(
+		_elm_lang$navigation$Navigation$State,
+		{ctor: '[]'},
+		_elm_lang$core$Maybe$Nothing));
+var _elm_lang$navigation$Navigation$Reload = function (a) {
+	return {ctor: 'Reload', _0: a};
+};
+var _elm_lang$navigation$Navigation$reload = _elm_lang$navigation$Navigation$command(
+	_elm_lang$navigation$Navigation$Reload(false));
+var _elm_lang$navigation$Navigation$reloadAndSkipCache = _elm_lang$navigation$Navigation$command(
+	_elm_lang$navigation$Navigation$Reload(true));
+var _elm_lang$navigation$Navigation$Visit = function (a) {
+	return {ctor: 'Visit', _0: a};
+};
+var _elm_lang$navigation$Navigation$load = function (url) {
+	return _elm_lang$navigation$Navigation$command(
+		_elm_lang$navigation$Navigation$Visit(url));
+};
+var _elm_lang$navigation$Navigation$Modify = function (a) {
+	return {ctor: 'Modify', _0: a};
+};
+var _elm_lang$navigation$Navigation$modifyUrl = function (url) {
+	return _elm_lang$navigation$Navigation$command(
+		_elm_lang$navigation$Navigation$Modify(url));
+};
+var _elm_lang$navigation$Navigation$New = function (a) {
+	return {ctor: 'New', _0: a};
+};
+var _elm_lang$navigation$Navigation$newUrl = function (url) {
+	return _elm_lang$navigation$Navigation$command(
+		_elm_lang$navigation$Navigation$New(url));
+};
+var _elm_lang$navigation$Navigation$Jump = function (a) {
+	return {ctor: 'Jump', _0: a};
+};
+var _elm_lang$navigation$Navigation$back = function (n) {
+	return _elm_lang$navigation$Navigation$command(
+		_elm_lang$navigation$Navigation$Jump(0 - n));
+};
+var _elm_lang$navigation$Navigation$forward = function (n) {
+	return _elm_lang$navigation$Navigation$command(
+		_elm_lang$navigation$Navigation$Jump(n));
+};
+var _elm_lang$navigation$Navigation$cmdMap = F2(
+	function (_p5, myCmd) {
+		var _p6 = myCmd;
+		switch (_p6.ctor) {
+			case 'Jump':
+				return _elm_lang$navigation$Navigation$Jump(_p6._0);
+			case 'New':
+				return _elm_lang$navigation$Navigation$New(_p6._0);
+			case 'Modify':
+				return _elm_lang$navigation$Navigation$Modify(_p6._0);
+			case 'Visit':
+				return _elm_lang$navigation$Navigation$Visit(_p6._0);
+			default:
+				return _elm_lang$navigation$Navigation$Reload(_p6._0);
+		}
+	});
+var _elm_lang$navigation$Navigation$Monitor = function (a) {
+	return {ctor: 'Monitor', _0: a};
+};
+var _elm_lang$navigation$Navigation$program = F2(
+	function (locationToMessage, stuff) {
+		var init = stuff.init(
+			_elm_lang$navigation$Native_Navigation.getLocation(
+				{ctor: '_Tuple0'}));
+		var subs = function (model) {
+			return _elm_lang$core$Platform_Sub$batch(
+				{
+					ctor: '::',
+					_0: _elm_lang$navigation$Navigation$subscription(
+						_elm_lang$navigation$Navigation$Monitor(locationToMessage)),
+					_1: {
+						ctor: '::',
+						_0: stuff.subscriptions(model),
+						_1: {ctor: '[]'}
+					}
+				});
+		};
+		return _elm_lang$html$Html$program(
+			{init: init, view: stuff.view, update: stuff.update, subscriptions: subs});
+	});
+var _elm_lang$navigation$Navigation$programWithFlags = F2(
+	function (locationToMessage, stuff) {
+		var init = function (flags) {
+			return A2(
+				stuff.init,
+				flags,
+				_elm_lang$navigation$Native_Navigation.getLocation(
+					{ctor: '_Tuple0'}));
+		};
+		var subs = function (model) {
+			return _elm_lang$core$Platform_Sub$batch(
+				{
+					ctor: '::',
+					_0: _elm_lang$navigation$Navigation$subscription(
+						_elm_lang$navigation$Navigation$Monitor(locationToMessage)),
+					_1: {
+						ctor: '::',
+						_0: stuff.subscriptions(model),
+						_1: {ctor: '[]'}
+					}
+				});
+		};
+		return _elm_lang$html$Html$programWithFlags(
+			{init: init, view: stuff.view, update: stuff.update, subscriptions: subs});
+	});
+var _elm_lang$navigation$Navigation$subMap = F2(
+	function (func, _p7) {
+		var _p8 = _p7;
+		return _elm_lang$navigation$Navigation$Monitor(
+			function (_p9) {
+				return func(
+					_p8._0(_p9));
+			});
+	});
+var _elm_lang$navigation$Navigation$InternetExplorer = F2(
+	function (a, b) {
+		return {ctor: 'InternetExplorer', _0: a, _1: b};
+	});
+var _elm_lang$navigation$Navigation$Normal = function (a) {
+	return {ctor: 'Normal', _0: a};
+};
+var _elm_lang$navigation$Navigation$spawnPopWatcher = function (router) {
+	var reportLocation = function (_p10) {
+		return A2(
+			_elm_lang$core$Platform$sendToSelf,
+			router,
+			_elm_lang$navigation$Native_Navigation.getLocation(
+				{ctor: '_Tuple0'}));
+	};
+	return _elm_lang$navigation$Native_Navigation.isInternetExplorer11(
+		{ctor: '_Tuple0'}) ? A3(
+		_elm_lang$core$Task$map2,
+		_elm_lang$navigation$Navigation$InternetExplorer,
+		_elm_lang$core$Process$spawn(
+			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'popstate', _elm_lang$core$Json_Decode$value, reportLocation)),
+		_elm_lang$core$Process$spawn(
+			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'hashchange', _elm_lang$core$Json_Decode$value, reportLocation))) : A2(
+		_elm_lang$core$Task$map,
+		_elm_lang$navigation$Navigation$Normal,
+		_elm_lang$core$Process$spawn(
+			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'popstate', _elm_lang$core$Json_Decode$value, reportLocation)));
+};
+var _elm_lang$navigation$Navigation$onEffects = F4(
+	function (router, cmds, subs, _p11) {
+		var _p12 = _p11;
+		var _p15 = _p12.popWatcher;
+		var stepState = function () {
+			var _p13 = {ctor: '_Tuple2', _0: subs, _1: _p15};
+			_v6_2:
+			do {
+				if (_p13._0.ctor === '[]') {
+					if (_p13._1.ctor === 'Just') {
+						return A2(
+							_elm_lang$navigation$Navigation_ops['&>'],
+							_elm_lang$navigation$Navigation$killPopWatcher(_p13._1._0),
+							_elm_lang$core$Task$succeed(
+								A2(_elm_lang$navigation$Navigation$State, subs, _elm_lang$core$Maybe$Nothing)));
+					} else {
+						break _v6_2;
+					}
+				} else {
+					if (_p13._1.ctor === 'Nothing') {
+						return A2(
+							_elm_lang$core$Task$map,
+							function (_p14) {
+								return A2(
+									_elm_lang$navigation$Navigation$State,
+									subs,
+									_elm_lang$core$Maybe$Just(_p14));
+							},
+							_elm_lang$navigation$Navigation$spawnPopWatcher(router));
+					} else {
+						break _v6_2;
+					}
+				}
+			} while(false);
+			return _elm_lang$core$Task$succeed(
+				A2(_elm_lang$navigation$Navigation$State, subs, _p15));
+		}();
+		return A2(
+			_elm_lang$navigation$Navigation_ops['&>'],
+			_elm_lang$core$Task$sequence(
+				A2(
+					_elm_lang$core$List$map,
+					A2(_elm_lang$navigation$Navigation$cmdHelp, router, subs),
+					cmds)),
+			stepState);
+	});
+_elm_lang$core$Native_Platform.effectManagers['Navigation'] = {pkg: 'elm-lang/navigation', init: _elm_lang$navigation$Navigation$init, onEffects: _elm_lang$navigation$Navigation$onEffects, onSelfMsg: _elm_lang$navigation$Navigation$onSelfMsg, tag: 'fx', cmdMap: _elm_lang$navigation$Navigation$cmdMap, subMap: _elm_lang$navigation$Navigation$subMap};
+
 var _elm_lang$websocket$Native_WebSocket = function() {
 
 function open(url, settings)
@@ -10130,17 +10535,20 @@ var _jackgene$amazebot$Main$saveAndRunEncoder = function (model) {
 			}
 		});
 };
-var _jackgene$amazebot$Main$webSocketUrl = function (request) {
+var _jackgene$amazebot$Main$webSocketUrl = function (location) {
 	return A2(
 		_elm_lang$core$Basics_ops['++'],
-		request.secure ? 'wss' : 'ws',
+		_elm_lang$core$Native_Utils.eq(location.protocol, 'https') ? 'wss' : 'ws',
 		A2(
 			_elm_lang$core$Basics_ops['++'],
 			'://',
 			A2(
 				_elm_lang$core$Basics_ops['++'],
-				request.host,
-				A2(_elm_lang$core$Basics_ops['++'], request.pathname, '/simulation'))));
+				location.host,
+				A2(
+					_elm_lang$core$Basics_ops['++'],
+					location.pathname,
+					A2(_elm_lang$core$Basics_ops['++'], '/simulation', location.search)))));
 };
 var _jackgene$amazebot$Main$languageToMediaType = function (language) {
 	var _p8 = language;
@@ -10203,10 +10611,9 @@ var _jackgene$amazebot$Main$resetCodeCmd = _elm_lang$core$Native_Platform.outgoi
 	function (v) {
 		return v;
 	});
-var _jackgene$amazebot$Main$Request = F4(
-	function (a, b, c, d) {
-		return {secure: a, host: b, pathname: c, initLang: d};
-	});
+var _jackgene$amazebot$Main$Flags = function (a) {
+	return {initLang: a};
+};
 var _jackgene$amazebot$Main$Point = F2(
 	function (a, b) {
 		return {topMm: a, leftMm: b};
@@ -10264,42 +10671,43 @@ var _jackgene$amazebot$Main$ConsoleMessage = F2(
 	});
 var _jackgene$amazebot$Main$Model = F8(
 	function (a, b, c, d, e, f, g, h) {
-		return {request: a, language: b, source: c, startingPosition: d, robot: e, maze: f, stopWatch: g, console: h};
+		return {language: a, location: b, source: c, startingPosition: d, robot: e, maze: f, stopWatch: g, console: h};
 	});
-var _jackgene$amazebot$Main$init = function (request) {
-	return {
-		ctor: '_Tuple2',
-		_0: A8(
-			_jackgene$amazebot$Main$Model,
-			request,
-			request.initLang,
-			'',
-			_elm_lang$core$Maybe$Nothing,
-			_elm_lang$core$Maybe$Nothing,
-			_elm_lang$core$Maybe$Nothing,
-			A3(_jackgene$amazebot$Main$StopWatch, _elm_lang$core$Maybe$Nothing, 0, false),
-			{ctor: '[]'}),
-		_1: _elm_lang$core$Platform_Cmd$batch(
-			{
-				ctor: '::',
-				_0: _jackgene$amazebot$Main$localStorageGetItemCmd(
-					A2(
-						_elm_lang$core$Basics_ops['++'],
-						request.pathname,
-						A2(_elm_lang$core$Basics_ops['++'], '/source.', request.initLang))),
-				_1: {
+var _jackgene$amazebot$Main$init = F2(
+	function (flags, location) {
+		return {
+			ctor: '_Tuple2',
+			_0: A8(
+				_jackgene$amazebot$Main$Model,
+				flags.initLang,
+				location,
+				'',
+				_elm_lang$core$Maybe$Nothing,
+				_elm_lang$core$Maybe$Nothing,
+				_elm_lang$core$Maybe$Nothing,
+				A3(_jackgene$amazebot$Main$StopWatch, _elm_lang$core$Maybe$Nothing, 0, false),
+				{ctor: '[]'}),
+			_1: _elm_lang$core$Platform_Cmd$batch(
+				{
 					ctor: '::',
-					_0: _jackgene$amazebot$Main$codeMirrorFromTextAreaCmd(
-						{
-							ctor: '_Tuple2',
-							_0: 'source',
-							_1: _jackgene$amazebot$Main$languageToMediaType(request.initLang)
-						}),
-					_1: {ctor: '[]'}
-				}
-			})
-	};
-};
+					_0: _jackgene$amazebot$Main$localStorageGetItemCmd(
+						A2(
+							_elm_lang$core$Basics_ops['++'],
+							location.pathname,
+							A2(_elm_lang$core$Basics_ops['++'], '/source.', flags.initLang))),
+					_1: {
+						ctor: '::',
+						_0: _jackgene$amazebot$Main$codeMirrorFromTextAreaCmd(
+							{
+								ctor: '_Tuple2',
+								_0: 'source',
+								_1: _jackgene$amazebot$Main$languageToMediaType(flags.initLang)
+							}),
+						_1: {ctor: '[]'}
+					}
+				})
+		};
+	});
 var _jackgene$amazebot$Main$StdErr = {ctor: 'StdErr'};
 var _jackgene$amazebot$Main$StdOut = {ctor: 'StdOut'};
 var _jackgene$amazebot$Main$consoleMessageJsonDecoder = A3(
@@ -10320,9 +10728,7 @@ var _jackgene$amazebot$Main$consoleMessageJsonDecoder = A3(
 		}),
 	A2(_elm_lang$core$Json_Decode$field, 'm', _elm_lang$core$Json_Decode$string),
 	A2(_elm_lang$core$Json_Decode$field, 't', _elm_lang$core$Json_Decode$string));
-var _jackgene$amazebot$Main$ConsoleScrolled = function (a) {
-	return {ctor: 'ConsoleScrolled', _0: a};
-};
+var _jackgene$amazebot$Main$NoOp = {ctor: 'NoOp'};
 var _jackgene$amazebot$Main$SendWebSocketKeepAlive = function (a) {
 	return {ctor: 'SendWebSocketKeepAlive', _0: a};
 };
@@ -10662,7 +11068,7 @@ var _jackgene$amazebot$Main$ReceivedTemplatedSource = function (a) {
 	return {ctor: 'ReceivedTemplatedSource', _0: a};
 };
 var _jackgene$amazebot$Main$loadCodeTemplate = F2(
-	function (request, language) {
+	function (location, language) {
 		return A2(
 			_elm_lang$http$Http$send,
 			_jackgene$amazebot$Main$ReceivedTemplatedSource,
@@ -10672,10 +11078,10 @@ var _jackgene$amazebot$Main$loadCodeTemplate = F2(
 					'//',
 					A2(
 						_elm_lang$core$Basics_ops['++'],
-						request.host,
+						location.host,
 						A2(
 							_elm_lang$core$Basics_ops['++'],
-							request.pathname,
+							location.pathname,
 							A2(_elm_lang$core$Basics_ops['++'], '/template.', language))))));
 	});
 var _jackgene$amazebot$Main$update = F2(
@@ -10697,7 +11103,7 @@ var _jackgene$amazebot$Main$update = F2(
 					return {
 						ctor: '_Tuple2',
 						_0: model,
-						_1: A2(_jackgene$amazebot$Main$loadCodeTemplate, model.request, model.language)
+						_1: A2(_jackgene$amazebot$Main$loadCodeTemplate, model.location, model.language)
 					};
 				}
 			case 'ReceivedTemplatedSource':
@@ -10769,7 +11175,7 @@ var _jackgene$amazebot$Main$update = F2(
 									_0: _jackgene$amazebot$Main$localStorageGetItemCmd(
 										A2(
 											_elm_lang$core$Basics_ops['++'],
-											model.request.pathname,
+											model.location.pathname,
 											A2(_elm_lang$core$Basics_ops['++'], '/source.', _p16))),
 									_1: {ctor: '[]'}
 								}
@@ -10810,7 +11216,7 @@ var _jackgene$amazebot$Main$update = F2(
 										ctor: '_Tuple2',
 										_0: A2(
 											_elm_lang$core$Basics_ops['++'],
-											model.request.pathname,
+											model.location.pathname,
 											A2(_elm_lang$core$Basics_ops['++'], '/source.', model.language)),
 										_1: model.source
 									}),
@@ -10818,7 +11224,7 @@ var _jackgene$amazebot$Main$update = F2(
 									ctor: '::',
 									_0: A2(
 										_elm_lang$websocket$WebSocket$send,
-										_jackgene$amazebot$Main$webSocketUrl(model.request),
+										_jackgene$amazebot$Main$webSocketUrl(model.location),
 										A2(
 											_elm_lang$core$Json_Encode$encode,
 											0,
@@ -10835,7 +11241,7 @@ var _jackgene$amazebot$Main$update = F2(
 					_1: _jackgene$amazebot$Main$resetCodeCmd(
 						A2(
 							_elm_lang$core$Basics_ops['++'],
-							model.request.pathname,
+							model.location.pathname,
 							A2(_elm_lang$core$Basics_ops['++'], '/source.', model.language)))
 				};
 			case 'AdvanceStopWatch':
@@ -10988,7 +11394,7 @@ var _jackgene$amazebot$Main$update = F2(
 										}),
 									_1: A2(
 										_elm_lang$core$Task$attempt,
-										_jackgene$amazebot$Main$ConsoleScrolled,
+										_elm_lang$core$Basics$always(_jackgene$amazebot$Main$NoOp),
 										_elm_lang$dom$Dom_Scroll$toBottom('console'))
 								};
 							} else {
@@ -11032,7 +11438,7 @@ var _jackgene$amazebot$Main$update = F2(
 					_0: model,
 					_1: A2(
 						_elm_lang$websocket$WebSocket$send,
-						_jackgene$amazebot$Main$webSocketUrl(model.request),
+						_jackgene$amazebot$Main$webSocketUrl(model.location),
 						'{}')
 				};
 			default:
@@ -11059,7 +11465,7 @@ var _jackgene$amazebot$Main$subscriptions = function (model) {
 							ctor: '::',
 							_0: A2(
 								_elm_lang$websocket$WebSocket$listen,
-								_jackgene$amazebot$Main$webSocketUrl(model.request),
+								_jackgene$amazebot$Main$webSocketUrl(model.location),
 								_jackgene$amazebot$Main$ServerCommand),
 							_1: {ctor: '[]'}
 						}
@@ -11079,30 +11485,17 @@ var _jackgene$amazebot$Main$subscriptions = function (model) {
 					_1: {ctor: '[]'}
 				})));
 };
-var _jackgene$amazebot$Main$main = _elm_lang$html$Html$programWithFlags(
+var _jackgene$amazebot$Main$main = A2(
+	_elm_lang$navigation$Navigation$programWithFlags,
+	_elm_lang$core$Basics$always(_jackgene$amazebot$Main$NoOp),
 	{init: _jackgene$amazebot$Main$init, view: _jackgene$amazebot$Main$view, update: _jackgene$amazebot$Main$update, subscriptions: _jackgene$amazebot$Main$subscriptions})(
 	A2(
 		_elm_lang$core$Json_Decode$andThen,
-		function (host) {
-			return A2(
-				_elm_lang$core$Json_Decode$andThen,
-				function (initLang) {
-					return A2(
-						_elm_lang$core$Json_Decode$andThen,
-						function (pathname) {
-							return A2(
-								_elm_lang$core$Json_Decode$andThen,
-								function (secure) {
-									return _elm_lang$core$Json_Decode$succeed(
-										{host: host, initLang: initLang, pathname: pathname, secure: secure});
-								},
-								A2(_elm_lang$core$Json_Decode$field, 'secure', _elm_lang$core$Json_Decode$bool));
-						},
-						A2(_elm_lang$core$Json_Decode$field, 'pathname', _elm_lang$core$Json_Decode$string));
-				},
-				A2(_elm_lang$core$Json_Decode$field, 'initLang', _elm_lang$core$Json_Decode$string));
+		function (initLang) {
+			return _elm_lang$core$Json_Decode$succeed(
+				{initLang: initLang});
 		},
-		A2(_elm_lang$core$Json_Decode$field, 'host', _elm_lang$core$Json_Decode$string)));
+		A2(_elm_lang$core$Json_Decode$field, 'initLang', _elm_lang$core$Json_Decode$string)));
 
 var Elm = {};
 Elm['Main'] = Elm['Main'] || {};

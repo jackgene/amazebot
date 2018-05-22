@@ -8,9 +8,6 @@
     <script type="text/javascript">
       let app = Elm.Main.fullscreen(
         {
-          secure: window.location.protocol === "https:",
-          host: window.location.host,
-          pathname: window.location.pathname,
           initLang: window.localStorage.getItem("lang") || "java"
         }
       );

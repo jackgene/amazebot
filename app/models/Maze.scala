@@ -130,7 +130,7 @@ object Maze {
     )
   )
 
-  def random(verticalCells: Int, horizontalCells: Int): GeneratedMaze = {
+  def random(verticalCells: Int, horizontalCells: Int, rng: Random): GeneratedMaze = {
     val CellHeightMm: Int = Maze.HeightMm / verticalCells
     val CellWidthMm: Int = Maze.WidthMm / horizontalCells
     val HalfWallThicknessMm: Int = 30
@@ -215,7 +215,7 @@ object Maze {
         else {
           val rndUnvisitedNeighbor: (Int,Int) =
             if (unvisitedNeighbors.size == 1) unvisitedNeighbors.head
-            else unvisitedNeighbors.toIndexedSeq(Random.nextInt(unvisitedNeighbors.size))
+            else unvisitedNeighbors.toIndexedSeq(rng.nextInt(unvisitedNeighbors.size))
           val walls: Set[Wall] = wallBetween(visiting, rndUnvisitedNeighbor) match {
             case Some(wall: Wall) => accum.head - wall
             case None => accum.head
@@ -255,13 +255,13 @@ object Maze {
       ).
       toSet
     )
-    (Stream.continually(Random.nextInt(verticalCells)) zip Stream.continually(Random.nextInt(horizontalCells))).
+    (Stream.continually(rng.nextInt(verticalCells)) zip Stream.continually(rng.nextInt(horizontalCells))).
       sliding(2).
       collectFirst {
         case (startCell @ (startTop: Int, startLeft)) #:: (finishCell @ (finishTop: Int, finishLeft: Int)) #:: Stream.Empty if startCell != finishCell =>
           GeneratedMaze(
             Point(startTop * CellHeightMm + CellHeightMm / 2, startLeft * CellWidthMm + CellWidthMm / 2),
-            Random.nextInt(4) * math.Pi / 2,
+            rng.nextInt(4) * math.Pi / 2,
             Point(finishTop * CellHeightMm + CellHeightMm / 2, finishLeft * CellWidthMm + CellWidthMm / 2),
             wallsHistory(finishCell :: Nil, cells - finishCell, initialWalls :: Nil)
           )
