@@ -32,10 +32,10 @@ object Maze {
     top = Double.NegativeInfinity,
     right = Double.PositiveInfinity,
     bottom = Double.PositiveInfinity,
-    left = 5000.0
+    left = WidthMm
   )
   case object BottomBoundary extends Obstruction(
-    top = 5000.0,
+    top = HeightMm,
     right = Double.PositiveInfinity,
     bottom = Double.PositiveInfinity,
     left = Double.NegativeInfinity
