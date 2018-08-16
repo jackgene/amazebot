@@ -209,7 +209,7 @@ object Maze {
             (visitingTop + 1, visitingLeft),
             (visitingTop, visitingLeft - 1),
             (visitingTop, visitingLeft + 1)
-          ) intersect unvisited
+          ) & unvisited
 
         if (unvisitedNeighbors.isEmpty) wallsHistory(toVisit.tail, unvisited, accum)
         else {
@@ -243,7 +243,7 @@ object Maze {
       ).
       toSet
 
-      union
+      ++
 
       // Horizontal walls
       (
@@ -311,12 +311,9 @@ sealed abstract class Maze {
     val robotCenterLeftMm: Double = robotPosition.leftMm
 
     (
-      obstructionsOrderedByTopEdge.to(RobotEdges(robotPosition))
-      intersect
-      obstructionsOrderedByRightEdge.to(RobotEdges(robotPosition))
-      intersect
-      obstructionsOrderedByBottomEdge.to(RobotEdges(robotPosition))
-      intersect
+      obstructionsOrderedByTopEdge.to(RobotEdges(robotPosition)) &
+      obstructionsOrderedByRightEdge.to(RobotEdges(robotPosition)) &
+      obstructionsOrderedByBottomEdge.to(RobotEdges(robotPosition)) &
       obstructionsOrderedByLeftEdge.to(RobotEdges(robotPosition))
     ).
     filter {
@@ -364,10 +361,8 @@ sealed abstract class Maze {
       Double = {
     val closestObstruction: Obstruction =
       (
-        obsAhead.from(RobotEdges(robotPosition))
-        intersect
-        obsToLeft.to(RobotCenter(robotPosition))
-        intersect
+        obsAhead.from(RobotEdges(robotPosition)) &
+        obsToLeft.to(RobotCenter(robotPosition)) &
         obsToRight.to(RobotCenter(robotPosition))
       ).
       head
