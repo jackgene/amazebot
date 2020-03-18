@@ -1,8 +1,5 @@
 package engines
 
-import java.lang.reflect.Method
-import java.security.{AccessController, PrivilegedAction}
-
 import org.objectweb.asm._
 
 import scala.util.Try
@@ -40,27 +37,27 @@ object Language {
                 }
               }
 
-              override def visitLineNumber(line: Int, start: Label) {
+              override def visitLineNumber(line: Int, start: Label): Unit = {
                 super.visitLineNumber(line, start)
                 if (line > 0 && !instrumentedLines.contains(line)) lastLineVisited = line
               }
 
-              override def visitInsn(opcode: Int) {
+              override def visitInsn(opcode: Int): Unit = {
                 if (opcode != Opcodes.RETURN) instrumentIfNecessary()
                 super.visitInsn(opcode)
               }
 
-              override def visitIntInsn(opcode: Int, operand: Int) {
+              override def visitIntInsn(opcode: Int, operand: Int): Unit = {
                 instrumentIfNecessary()
                 super.visitIntInsn(opcode, operand)
               }
 
-              override def visitVarInsn(opcode: Int, `var`: Int) {
+              override def visitVarInsn(opcode: Int, `var`: Int): Unit = {
                 instrumentIfNecessary()
                 super.visitVarInsn(opcode, `var`)
               }
 
-              override def visitTypeInsn(opcode: Int, `type`: String) {
+              override def visitTypeInsn(opcode: Int, `type`: String): Unit = {
                 if (opcode == Opcodes.NEW) {
                   super.visitTypeInsn(opcode, `type`)
                   instrumentIfNecessary()
@@ -71,47 +68,47 @@ object Language {
                 }
               }
 
-              override def visitFieldInsn(opcode: Int, owner: String, name: String, desc: String) {
+              override def visitFieldInsn(opcode: Int, owner: String, name: String, desc: String): Unit = {
                 instrumentIfNecessary()
                 super.visitFieldInsn(opcode, owner, name, desc)
               }
 
-              override def visitMethodInsn(opcode: Int, owner: String, name: String, desc: String, itf: Boolean) {
+              override def visitMethodInsn(opcode: Int, owner: String, name: String, desc: String, itf: Boolean): Unit = {
                 instrumentIfNecessary()
                 super.visitMethodInsn(opcode, owner, name, desc, itf)
               }
 
-              override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: Object*) {
+              override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: Object*): Unit = {
                 instrumentIfNecessary()
                 super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs: _*)
               }
 
-              override def visitJumpInsn(opcode: Int, label: Label) {
+              override def visitJumpInsn(opcode: Int, label: Label): Unit = {
                 instrumentIfNecessary()
                 super.visitJumpInsn(opcode, label)
               }
 
-              override def visitLdcInsn(cst: Any) {
+              override def visitLdcInsn(cst: Any): Unit = {
                 instrumentIfNecessary()
                 super.visitLdcInsn(cst)
               }
 
-              override def visitIincInsn(`var`: Int, increment: Int) {
+              override def visitIincInsn(`var`: Int, increment: Int): Unit = {
                 instrumentIfNecessary()
                 super.visitIincInsn(`var`, increment)
               }
 
-              override def visitTableSwitchInsn(min: Int, max: Int, dflt: Label, labels: Label*) {
+              override def visitTableSwitchInsn(min: Int, max: Int, dflt: Label, labels: Label*): Unit = {
                 instrumentIfNecessary()
                 super.visitTableSwitchInsn(min, max, dflt, labels: _*)
               }
 
-              override def visitLookupSwitchInsn(dflt: Label, keys: Array[Int], labels: Array[Label]) {
+              override def visitLookupSwitchInsn(dflt: Label, keys: Array[Int], labels: Array[Label]): Unit = {
                 instrumentIfNecessary()
                 super.visitLookupSwitchInsn(dflt, keys, labels)
               }
 
-              override def visitMultiANewArrayInsn(desc: String, dims: Int) {
+              override def visitMultiANewArrayInsn(desc: String, dims: Int): Unit = {
                 instrumentIfNecessary()
                 super.visitMultiANewArrayInsn(desc, dims)
               }

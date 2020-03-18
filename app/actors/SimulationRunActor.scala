@@ -1,14 +1,13 @@
 package actors
 
 import java.io.{FilePermission, PrintStream}
-import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.ReflectPermission
 import java.security.Permission
 import java.util.PropertyPermission
 import java.util.concurrent.locks.LockSupport
-import java.util.concurrent.{Executors, RejectedExecutionException, ThreadFactory}
+import java.util.concurrent.{ExecutorService, Executors, RejectedExecutionException}
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Status}
 import akka.pattern.pipe
 import exceptions.ExitTrappedException
 import io.PerThreadPrintStream
@@ -18,7 +17,7 @@ import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService, Future}
 import scala.math.{cos, sin}
 import scala.util.{Failure, Success, Try}
 
@@ -64,13 +63,13 @@ object SimulationRunActor {
   private case object RobotProgramExited
 
   def props(webSocketOut: ActorRef, maze: Maze, robotControlScript: () => Try[Unit]): Props = {
-    Props(classOf[SimulationRunActor], webSocketOut, maze: Maze, robotControlScript)
+    Props(new SimulationRunActor(webSocketOut, maze: Maze, robotControlScript))
   }
 
   val simulationRunHolder = new ThreadLocal[ActorRef]
 
   // Stricter security manager to limit what simulation can do
-  private val securityManager = new SecurityManager() {
+  private val securityManager: SecurityManager = new SecurityManager() {
     private val AllowedRuntimePerms = Set(
       "accessDeclaredMembers", "modifyThread", "setContextClassLoader",
       // Jython-specific
@@ -93,7 +92,7 @@ object SimulationRunActor {
         case runtime: RuntimePermission if AllowedRuntimePerms.contains(runtime.getName) => // OK
 
         case sysExit: RuntimePermission if sysExit.getName.startsWith("exitVM") =>
-          throw new ExitTrappedException(perm.getName.substring(7).toInt)
+          throw ExitTrappedException(perm.getName.substring(7).toInt)
 
         case reflect: ReflectPermission if AllowedReflectPerms.contains(reflect.getName) => // OK
 
@@ -105,12 +104,12 @@ object SimulationRunActor {
     }
   }
   private val originalSecurityManager = System.getSecurityManager
-  private val securityManagerHolder = new ThreadLocal[SecurityManager] {
-    override val initialValue = originalSecurityManager
+  private val securityManagerHolder: ThreadLocal[SecurityManager] = new ThreadLocal[SecurityManager] {
+    override val initialValue: SecurityManager = originalSecurityManager
   }
   System.setSecurityManager(
     new SecurityManager() {
-      override def checkPermission(perm: Permission) {
+      override def checkPermission(perm: Permission): Unit = {
         val simulationSecurityManager: SecurityManager =
           SimulationRunActor.securityManagerHolder.get
 
@@ -134,49 +133,46 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
   import context.dispatcher
   import models.ViewUpdateInstructions._
 
-  val executorService = Executors.newSingleThreadExecutor(
-    new ThreadFactory {
-      override def newThread(r: Runnable): Thread = {
-        new Thread(r) {
-          setPriority(Thread.MIN_PRIORITY)
-          // Needed because the sleep between interrupt and stop sometimes results
-          // in an uncaught InterruptedException
-          setUncaughtExceptionHandler(
-            new UncaughtExceptionHandler {
-              override def uncaughtException(t: Thread, e: Throwable): Unit = {
-                // No-op
-              }
-            }
-          )
-          context.become(
-            running(
-              System.currentTimeMillis,
-              RobotState(velocityMmS = 0, radiusMm = None),
-              RobotPosition(
-                topMm = maze.startPoint.topMm,
-                leftMm = maze.startPoint.leftMm,
-                orientationRad = maze.startOrientationRad
-              ),
-              Queue.empty,
-              RobotProgramStats(this)
-            )
-          )
-
-          /**
-            * Heavy handed, but ensures that runaway programs get terminated successfully.
-            */
-          override def interrupt(): Unit = {
-            super.interrupt()
-            Thread.sleep(10) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
-            //noinspection ScalaDeprecation
-            stop()
+  private val executorService: ExecutorService = Executors.newSingleThreadExecutor(
+    (r: Runnable) => {
+      new Thread(r) {
+        setPriority(Thread.MIN_PRIORITY)
+        // Needed because the sleep between interrupt and stop sometimes results
+        // in an uncaught InterruptedException
+        setUncaughtExceptionHandler(
+          (_: Thread, _: Throwable) => {
+            // No-op
           }
+        )
+        context.become(
+          running(
+            System.currentTimeMillis,
+            RobotState(velocityMmS = 0, radiusMm = None),
+            RobotPosition(
+              topMm = maze.startPoint.topMm,
+              leftMm = maze.startPoint.leftMm,
+              orientationRad = maze.startOrientationRad
+            ),
+            Queue.empty,
+            RobotProgramStats(this)
+          )
+        )
+
+        /**
+          * Heavy handed, but ensures that runaway programs get terminated successfully.
+          */
+        override def interrupt(): Unit = {
+          super.interrupt()
+          Thread.sleep(10) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
+          //noinspection ScalaDeprecation
+          stop()
         }
       }
     }
   )
 
-  val viewUpdateScheduler = context.system.scheduler.schedule(0.millis, 200.millis, self, UpdateView)
+  private val viewUpdateScheduler: Cancellable =
+    context.system.scheduler.scheduleAtFixedRate(0.millis, 200.millis, self, UpdateView)
 
   private def moveRobot(
       oldTimeMillis: Long, newTimeMillis: Long,
@@ -248,7 +244,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       lastDriveChangeTimeMillis: Long, robotState: RobotState, robotPosition: RobotPosition,
       recentLines: Queue[ExecuteLine], robotProgram: RobotProgramStats):
       Receive = {
-    case drive @ Drive(newVelocityMmS: Double, newRadiusMm: Option[Double])
+    case drive @ Drive(_: Double, newRadiusMm: Option[Double])
         if drive.adjustedVelocityMmS != robotState.velocityMmS || newRadiusMm != robotState.radiusMm =>
       val newDriveChangeTimeMillis = System.currentTimeMillis()
 
@@ -419,7 +415,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
   }
 
   private def stopping(recentLines: Queue[ExecuteLine]): Receive = {
-    case execLine: ExecuteLine => // No-op, this is usually from malicious code?
+    case _: ExecuteLine => // No-op, this is usually from malicious code?
 
     case UpdateExecuteLine =>
       val (_, newRecentLines: Queue[ExecuteLine]) = recentLines.dequeue
@@ -432,7 +428,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       }
   }
 
-  override def receive = initializing
+  override def receive: Receive = initializing
 
   override def postStop(): Unit = {
     viewUpdateScheduler.cancel()
@@ -441,7 +437,8 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
 
   // Start simulation
   {
-    implicit val ec = ExecutionContext.fromExecutorService(
+    // Simulation does not run if annotated as ExecutionContext
+    implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(
       executorService,
       {
         case _: RejectedExecutionException => // Swallow
@@ -485,9 +482,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
           System.err.println(s"Simulation completed with a non-zero exit code of ${status}")
         RobotProgramExited
 
-      case unhandled: InterruptedException => // No-op
+      case _: InterruptedException => // No-op
 
-      case unhandled: ThreadDeath => // No-op
+      case _: ThreadDeath => // No-op
 
       case other: Throwable =>
         other.printStackTrace()

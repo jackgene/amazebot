@@ -22,10 +22,10 @@ class SimpleIRobot extends IRobotInterface {
   import SimpleIRobot._
   import IRobotInterface._
 
-  val MaxVelocityMmS = 500
-  val MinVelocityMms = -500
-  val MaxRadiusMm = 2000
-  val MinRadiusMm = -2000
+  val MaxVelocityMmS: Int = 500
+  val MinVelocityMms: Int = -500
+  val MaxRadiusMm: Int = 2000
+  val MinRadiusMm: Int = -2000
 
   private val simulationRun: ActorRef = SimulationRunActor.simulationRunHolder.get
   private implicit val AskTimeout: Timeout = 1.second
@@ -133,113 +133,115 @@ class SimpleIRobot extends IRobotInterface {
   override def reset(): Unit = {}
 
   // Unsupported
-  override def isCliffFrontLeft: Boolean = ???
+  private def unsupported: Nothing = throw new UnsupportedOperationException
 
-  override def getBatteryCapacity: Int = ???
+  override def isCliffFrontLeft: Boolean = unsupported
 
-  override def getInfraredByte: Int = ???
+  override def getBatteryCapacity: Int = unsupported
 
-  override def ledsToggle(b: Boolean): Unit = ???
+  override def getInfraredByte: Int = unsupported
 
-  override def getBatteryTemperature: Int = ???
+  override def ledsToggle(b: Boolean): Unit = unsupported
 
-  override def isBumpRight: Boolean = ???
+  override def getBatteryTemperature: Int = unsupported
 
-  override def isVirtualWall: Boolean = ???
+  override def isBumpRight: Boolean = unsupported
 
-  override def song(i: Int, ints: Array[Int]): Unit = ???
+  override def isVirtualWall: Boolean = unsupported
 
-  override def song(i: Int, ints: Array[Int], i1: Int, i2: Int): Unit = ???
+  override def song(i: Int, ints: Array[Int]): Unit = unsupported
 
-  override def getVoltage: Int = ???
+  override def song(i: Int, ints: Array[Int], i1: Int, i2: Int): Unit = unsupported
 
-  override def isCliffFrontRight: Boolean = ???
+  override def getVoltage: Int = unsupported
 
-  override def getMotorCurrentRight: Int = ???
+  override def isCliffFrontRight: Boolean = unsupported
 
-  override def isSpotButtonDown: Boolean = ???
+  override def getMotorCurrentRight: Int = unsupported
 
-  override def getRequestedVelocityLeft: Int = ???
+  override def isSpotButtonDown: Boolean = unsupported
 
-  override def isSongPlaying: Boolean = ???
+  override def getRequestedVelocityLeft: Int = unsupported
 
-  override def waitButtonPressed(b: Boolean): Unit = ???
+  override def isSongPlaying: Boolean = unsupported
 
-  override def isBumpLeft: Boolean = ???
+  override def waitButtonPressed(b: Boolean): Unit = unsupported
 
-  override def isLightBump: Boolean = ???
+  override def isBumpLeft: Boolean = unsupported
 
-  override def getCliffSignalLeftFront: Int = ???
+  override def isLightBump: Boolean = unsupported
 
-  override def getRequestedRadius: Int = ???
+  override def getCliffSignalLeftFront: Int = unsupported
 
-  override def getMotorCurrentLeft: Int = ???
+  override def getRequestedRadius: Int = unsupported
 
-  override def setTailLight(b: Boolean): Unit = ???
+  override def getMotorCurrentLeft: Int = unsupported
 
-  override def getLightBumps: Array[Int] = ???
+  override def setTailLight(b: Boolean): Unit = unsupported
 
-  override def getSongNumber: Int = ???
+  override def getLightBumps: Array[Int] = unsupported
 
-  override def getOiMode: Int = ???
+  override def getSongNumber: Int = unsupported
 
-  override def isStasis: Boolean = ???
+  override def getOiMode: Int = unsupported
 
-  override def isWheelOvercurrentSideBrush: Boolean = ???
+  override def isStasis: Boolean = unsupported
 
-  override def isCliffRight: Boolean = ???
+  override def isWheelOvercurrentSideBrush: Boolean = unsupported
 
-  override def getRequestedVelocity: Int = ???
+  override def isCliffRight: Boolean = unsupported
 
-  override def playSong(i: Int): Unit = ???
+  override def getRequestedVelocity: Int = unsupported
 
-  override def getEncoderCountLeft: Int = ???
+  override def playSong(i: Int): Unit = unsupported
 
-  override def getCurrent: Int = ???
+  override def getEncoderCountLeft: Int = unsupported
 
-  override def safe(): Unit = ???
+  override def getCurrent: Int = unsupported
 
-  override def isRightWheelOvercurrent: Boolean = ???
+  override def safe(): Unit = unsupported
 
-  override def getEncoderCountRight: Int = ???
+  override def isRightWheelOvercurrent: Boolean = unsupported
 
-  override def getInfraredByteLeft: Int = ???
+  override def getEncoderCountRight: Int = unsupported
 
-  override def getRequestedVelocityRight: Int = ???
+  override def getInfraredByteLeft: Int = unsupported
 
-  override def getInfraredByteRight: Int = ???
+  override def getRequestedVelocityRight: Int = unsupported
 
-  override def isWheelDropLeft: Boolean = ???
+  override def getInfraredByteRight: Int = unsupported
 
-  override def isWheelOvercurrentMainBrush: Boolean = ???
+  override def isWheelDropLeft: Boolean = unsupported
 
-  override def getBatteryCharge: Int = ???
+  override def isWheelOvercurrentMainBrush: Boolean = unsupported
 
-  override def isCliffLeft: Boolean = ???
+  override def getBatteryCharge: Int = unsupported
 
-  override def isCleanButtonDown: Boolean = ???
+  override def isCliffLeft: Boolean = unsupported
 
-  override def leds(i: Int, i1: Int, b: Boolean): Unit = ???
+  override def isCleanButtonDown: Boolean = unsupported
 
-  override def isHomeBaseChargerAvailable: Boolean = ???
+  override def leds(i: Int, i1: Int, b: Boolean): Unit = unsupported
 
-  override def getCliffSignalRight: Int = ???
+  override def isHomeBaseChargerAvailable: Boolean = unsupported
 
-  override def isWheelDropRight: Boolean = ???
+  override def getCliffSignalRight: Int = unsupported
 
-  override def getCliffSignalLeft: Int = ???
+  override def isWheelDropRight: Boolean = unsupported
 
-  override def getChargingState: Int = ???
+  override def getCliffSignalLeft: Int = unsupported
 
-  override def isInternalChargerAvailable: Boolean = ???
+  override def getChargingState: Int = unsupported
 
-  override def full(): Unit = ???
+  override def isInternalChargerAvailable: Boolean = unsupported
 
-  override def getCliffSignalRightFront: Int = ???
+  override def full(): Unit = unsupported
 
-  override def isWall: Boolean = ???
+  override def getCliffSignalRightFront: Int = unsupported
 
-  override def getWallSignal: Int = ???
+  override def isWall: Boolean = unsupported
 
-  override def isLeftWheelOvercurrent: Boolean = ???
+  override def getWallSignal: Int = unsupported
+
+  override def isLeftWheelOvercurrent: Boolean = unsupported
 }

@@ -8,8 +8,8 @@ private object NoopOutputStream extends OutputStream {
 }
 object PerThreadPrintStream {
   private val origStdOut: PrintStream = System.out
-  private val stdOutHolder = new ThreadLocal[PrintStream] {
-    override val initialValue = origStdOut
+  private val stdOutHolder: ThreadLocal[PrintStream] = new ThreadLocal[PrintStream] {
+    override val initialValue: PrintStream = origStdOut
   }
   val out: PrintStream = new PerThreadPrintStream(stdOutHolder)
   def redirectStdOut(dest: PrintStream): Unit = {
@@ -17,8 +17,8 @@ object PerThreadPrintStream {
   }
 
   private val origStdErr: PrintStream = System.err
-  private val stdErrHolder = new ThreadLocal[PrintStream] {
-    override val initialValue = origStdErr
+  private val stdErrHolder: ThreadLocal[PrintStream] = new ThreadLocal[PrintStream] {
+    override val initialValue: PrintStream = origStdErr
   }
   val err: PrintStream = new PerThreadPrintStream(stdErrHolder)
   def redirectStdErr(dest: PrintStream): Unit = {

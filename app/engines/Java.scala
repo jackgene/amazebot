@@ -3,16 +3,15 @@ package engines
 import java.lang.reflect.{InvocationTargetException, Method}
 import java.security.{AccessController, PrivilegedAction}
 
-import exceptions.ExitTrappedException
 import org.codehaus.janino.{ByteArrayClassLoader, SimpleCompiler}
-import play.api.Logger
+import play.api.Logging
 
 import scala.util.Try
 
 /**
   * Support for running Java robot control programs.
   */
-case object Java extends Language {
+case object Java extends Language with Logging {
   private val PackageNameExtractor =
     """(?s).*package\s+((?:[A-Za-z][A-Za-z0-9]+)(?:\.[A-Za-z][A-Za-z0-9]+)*).*""".r
   private val ClassNameExtractor =
@@ -21,16 +20,17 @@ case object Java extends Language {
   System.setProperty("org.codehaus.janino.source_debugging.enable", "true")
 
   override def makeRobotControlScript(javaSource: String): () => Try[Unit] = {
-    Logger.info("Compiling Java source to byte code")
-    val compiler = new SimpleCompiler() {
+    logger.info("Compiling Java source to byte code")
+    val compiler: SimpleCompiler = new SimpleCompiler() {
       var result: ClassLoader = _
 
       override def cook(classes: java.util.Map[String,Array[Byte]]): Unit = {
-        import scala.collection.JavaConverters._
+        import scala.jdk.CollectionConverters._
         val transformedClasses: java.util.Map[String,Array[Byte]] =
-          classes.asScala.mapValues { bytes: Array[Byte] =>
+          classes.asScala.view.mapValues { bytes: Array[Byte] =>
             Language.transform(bytes)
           }.
+          toMap.
           asJava
         result = AccessController.doPrivileged(
           new PrivilegedAction[ClassLoader]() {

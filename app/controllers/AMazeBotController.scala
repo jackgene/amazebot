@@ -4,11 +4,16 @@ import java.lang.Long.parseUnsignedLong
 import java.net.URLDecoder
 
 import actors.SimulationSessionActor
+import akka.actor.{ActorRef, ActorSystem}
+import akka.stream.Materializer
+import javax.inject.{Inject, Singleton}
 import models.Maze
-import play.api.Play.current
+import play.api.Configuration
 import play.api.libs.json.JsValue
+import play.api.libs.streams.ActorFlow
 import play.api.mvc._
 
+import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 /**
@@ -18,11 +23,15 @@ import scala.util.Random
   * @author Jack Leow
   * @since August 2017
  */
-object AMazeBotController extends Controller {
+@Singleton
+class AMazeBotController @Inject()
+    (cfg: Configuration, cc: ControllerComponents)
+    (implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
+    extends AbstractController(cc) {
   /**
    * The home page.
    */
-  def index() = Action { implicit request: Request[AnyContent] =>
+  def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     val lastAttemptedPathOpt: Option[String] =
       request.cookies.get("lastAttempted").
       map { cookie => URLDecoder.decode(cookie.value, "UTF-8") }
@@ -33,7 +42,7 @@ object AMazeBotController extends Controller {
   /**
    * A maze.
    */
-  def maze(name: String) = Action { implicit request: Request[AnyContent] =>
+  def maze(name: String): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     if (!Maze.byName.contains(name)) NotFound
     else Ok(views.html.index())
   }
@@ -41,9 +50,9 @@ object AMazeBotController extends Controller {
   /**
     * A random maze with the given seed, or generate a new seed if not provided.
     */
-  def randomMaze(id: Option[String]) = Action { implicit request: Request[AnyContent] =>
+  def randomMaze(id: Option[String]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     id match {
-      case Some(seed: String) => Ok(views.html.index())
+      case Some(_: String) => Ok(views.html.index())
       case None => Redirect(s"/maze/random?id=${Random.nextLong().toHexString}")
     }
   }
@@ -51,24 +60,28 @@ object AMazeBotController extends Controller {
   /**
     * Creates a simulation session.
     */
-  def mazeSimulation(name: String) = WebSocket.acceptWithActor[JsValue,JsValue] { _ => webSocketOut =>
-    SimulationSessionActor.props(webSocketOut, Maze.byName(name))
+  def mazeSimulation(name: String): WebSocket = WebSocket.accept[JsValue,JsValue] { _: RequestHeader =>
+    ActorFlow.actorRef { webSocketClient: ActorRef =>
+      SimulationSessionActor.props(webSocketClient, Maze.byName(name))
+    }
   }
 
   /**
     * Creates a simulation session for a random maze.
     */
-  def randomMazeSimulation(seed: String) = WebSocket.acceptWithActor[JsValue,JsValue] { _ => webSocketOut =>
-    SimulationSessionActor.props(
-      webSocketOut,
-      Maze.random(6, 6, new Random(parseUnsignedLong(seed, 16)))
-    )
+  def randomMazeSimulation(seed: String): WebSocket = WebSocket.accept[JsValue,JsValue] { _: RequestHeader =>
+    ActorFlow.actorRef { webSocketClient: ActorRef =>
+      SimulationSessionActor.props(
+        webSocketClient,
+        Maze.random(6, 6, new Random(parseUnsignedLong(seed, 16)))
+      )
+    }
   }
 
   /**
     * Java code template.
     */
-  def codeTemplate(name: String, ext: String) = Action { implicit request: Request[AnyContent] =>
+  def codeTemplate(name: String, ext: String): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     Ok.sendResource(
       s"public/templates/${name}.${ext}" match {
         case templatePath if getClass.getClassLoader.getResource(templatePath) != null => templatePath

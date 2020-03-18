@@ -255,10 +255,10 @@ object Maze {
       ).
       toSet
     )
-    (Stream.continually(rng.nextInt(verticalCells)) zip Stream.continually(rng.nextInt(horizontalCells))).
+    (LazyList.continually(rng.nextInt(verticalCells)) zip LazyList.continually(rng.nextInt(horizontalCells))).
       sliding(2).
       collectFirst {
-        case (startCell @ (startTop: Int, startLeft)) #:: (finishCell @ (finishTop: Int, finishLeft: Int)) #:: Stream.Empty if startCell != finishCell =>
+        case (startCell @ (startTop: Int, startLeft)) #:: (finishCell @ (finishTop: Int, finishLeft: Int)) #:: LazyList() if startCell != finishCell =>
           GeneratedMaze(
             Point(startTop * CellHeightMm + CellHeightMm / 2, startLeft * CellWidthMm + CellWidthMm / 2),
             rng.nextInt(4) * math.Pi / 2,
@@ -271,6 +271,7 @@ object Maze {
 }
 sealed abstract class Maze {
   import Maze._
+  import Ordering.Double.TotalOrdering
 
   val startPoint: Point
   val startOrientationRad: Double
@@ -311,10 +312,10 @@ sealed abstract class Maze {
     val robotCenterLeftMm: Double = robotPosition.leftMm
 
     (
-      obstructionsOrderedByTopEdge.to(RobotEdges(robotPosition)) &
-      obstructionsOrderedByRightEdge.to(RobotEdges(robotPosition)) &
-      obstructionsOrderedByBottomEdge.to(RobotEdges(robotPosition)) &
-      obstructionsOrderedByLeftEdge.to(RobotEdges(robotPosition))
+      obstructionsOrderedByTopEdge.rangeTo(RobotEdges(robotPosition)) &
+      obstructionsOrderedByRightEdge.rangeTo(RobotEdges(robotPosition)) &
+      obstructionsOrderedByBottomEdge.rangeTo(RobotEdges(robotPosition)) &
+      obstructionsOrderedByLeftEdge.rangeTo(RobotEdges(robotPosition))
     ).
     filter {
       case Wall(Point(wallTopMm, wallLeftMm), _) if robotCenterTopMm < wallTopMm && robotCenterLeftMm < wallLeftMm =>
@@ -361,9 +362,9 @@ sealed abstract class Maze {
       Double = {
     val closestObstruction: Obstruction =
       (
-        obsAhead.from(RobotEdges(robotPosition)) &
-        obsToLeft.to(RobotCenter(robotPosition)) &
-        obsToRight.to(RobotCenter(robotPosition))
+        obsAhead.rangeFrom(RobotEdges(robotPosition)) &
+        obsToLeft.rangeTo(RobotCenter(robotPosition)) &
+        obsToRight.rangeTo(RobotCenter(robotPosition))
       ).
       head
 
@@ -420,5 +421,5 @@ sealed abstract class Maze {
 }
 case class UserDefinedMaze(startPoint: Point, startOrientationRad: Double, finish: Point, walls: Set[Maze.Wall]) extends Maze
 case class GeneratedMaze(startPoint: Point, startOrientationRad: Double, finish: Point, wallsHistory: List[Set[Maze.Wall]]) extends Maze {
-  override val walls = wallsHistory.head
+  override val walls: Set[Maze.Wall] = wallsHistory.head
 }

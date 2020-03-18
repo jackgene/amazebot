@@ -7,7 +7,7 @@ import engines.{Java, Language, Python}
 import models.Maze.Wall
 import models._
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{JsPath, JsValue, Json}
+import play.api.libs.json.{JsObject, JsPath, JsValue, Json}
 
 import scala.util.Try
 
@@ -19,7 +19,7 @@ import scala.util.Try
   */
 object SimulationSessionActor {
   // Incoming messages
-  val KeepAlive = Json.obj()
+  val KeepAlive: JsObject = Json.obj()
   object RunSimulation {
     def unapply(js: JsValue): Option[(String,String)] =
       js.asOpt[(String,String)](
@@ -40,7 +40,7 @@ object SimulationSessionActor {
   case object StdErr extends ConsoleMessageType
 
   def props(webSocketOut: ActorRef, maze: Maze): Props = {
-    Props(classOf[SimulationSessionActor], webSocketOut, maze)
+    Props(new SimulationSessionActor(webSocketOut, maze))
   }
 
   private[actors] case class MessageSendingOutputStream(webSocketOut: ActorRef, msg: String => PrintToConsole)

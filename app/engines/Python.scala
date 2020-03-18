@@ -1,28 +1,25 @@
 package engines
 
-import java.io.ByteArrayInputStream
-import java.lang.reflect.{InvocationTargetException, Method}
-
 import exceptions.ExitTrappedException
 import org.python.antlr._
 import org.python.antlr.ast._
 import org.python.antlr.base.expr
 import org.python.antlr.runtime._
-import org.python.core.{BytecodeLoader, Py, PyException, imp => PythonCompiler}
+import org.python.core.{Py, PyException}
 import org.python.util.PythonInterpreter
-import play.api.Logger
+import play.api.Logging
 
-import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Support for running Python robot control programs.
   */
-case object Python extends Language {
-  val IndentLineExtractor = """(\s*)(\w.*)""".r
-  val ElseExtractor = """(else\s*:\s*|)(.*)""".r
-  val ExitCodeExtractor = """SystemExit\\(([0-9]+),\\)""".r
+case object Python extends Language with Logging {
+  private val IndentLineExtractor = """(\s*)(\w.*)""".r
+  private val ElseExtractor = """(else\s*:\s*|)(.*)""".r
+  private val ExitCodeExtractor = """SystemExit\\(([0-9]+),\\)""".r
 
   private case class InstrumentingVisitor(line: Int, source: String, instrumentFuncName: String)
       extends VisitorBase[String] {
@@ -99,7 +96,7 @@ case object Python extends Language {
       map(s"import warnings; warnings.filterwarnings('ignore'); from actors.SimulationRunActor import beforeRunningLine as ${instrumentFuncName};" + _)
 
   def makeRobotControlScript(source: String): () => Try[Unit] = {
-    Logger.info("Compiling Python source to byte code")
+    logger.info("Compiling Python source to byte code")
     val instrumentFuncName: String = s"__ln${Random.nextInt(Int.MaxValue)}"
     val scriptToRun: String = instrumentScript(source, instrumentFuncName) match {
       case Success(instrumentedSource) => instrumentedSource
@@ -138,7 +135,7 @@ case object Python extends Language {
   }
 
   // Get Jython warmed up so that it stays within CPU thresholds for actual runs
-  Logger.info("Warming up Jython")
+  logger.info("Warming up Jython")
   PythonInterpreter.initialize(null, null, Array("python", "-W", "ignore"))
   new PythonInterpreter().exec(
     """from time import sleep

@@ -4,8 +4,8 @@ package models
   * Data about the robot's position relative to the map.
   */
 object RobotPosition {
-  val RobotSizeRadiusMm = 173.5
-  val RobotSizeRadiusMmSq = RobotSizeRadiusMm * RobotSizeRadiusMm
+  val RobotSizeRadiusMm: Double = 173.5
+  val RobotSizeRadiusMmSq: Double = RobotSizeRadiusMm * RobotSizeRadiusMm
 }
 case class RobotPosition(
   topMm: Double,
