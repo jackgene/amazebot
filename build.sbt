@@ -8,6 +8,7 @@ scalaVersion := "2.13.1"
 
 libraryDependencies += guice
 libraryDependencies += ws
+libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.6.3"
 libraryDependencies += "org.antlr" % "antlr-runtime" % "3.5.2"
 libraryDependencies += "org.codehaus.janino" % "janino" % "3.0.7"
 libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "5.2"
