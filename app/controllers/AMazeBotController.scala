@@ -24,8 +24,7 @@ import scala.util.Random
   * @since August 2017
  */
 @Singleton
-class AMazeBotController @Inject()
-    (cfg: Configuration, cc: ControllerComponents)
+class AMazeBotController @Inject()(cc: ControllerComponents)
     (implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
     extends AbstractController(cc) {
   /**
