@@ -1,15 +1,15 @@
-@()
+@(debug : Boolean)
 
 @main("A Maze Bot") {
     <script src="@routes.Assets.versioned("lib/codemirror/lib/codemirror.js")" type="text/javascript"></script>
     <script src="@routes.Assets.versioned("lib/codemirror/mode/clike/clike.js")" type="text/javascript"></script>
     <script src="@routes.Assets.versioned("lib/codemirror/mode/python/python.js")" type="text/javascript"></script>
-    <script type="text/javascript">
-      elmScriptSrc = window.location.hash == "#debug"
-        ? "@routes.Assets.versioned("javascripts/main.debug.js")"
-        : "@routes.Assets.versioned("javascripts/main.js")"
-      document.write('<script type="text/javascript" src="' + elmScriptSrc + '"><\/script>');
-    </script>
+    <script src="@routes.Assets.versioned("lib/codemirror/mode/python/python.js")" type="text/javascript"></script>
+    @if(debug) {
+        <script src="@routes.Assets.versioned("javascripts/main.debug.js")" type="text/javascript"></script>
+    } else {
+        <script src="@routes.Assets.versioned("javascripts/main.js")" type="text/javascript"></script>
+    }
     <script type="text/javascript">
       let app = Elm.Main.fullscreen(
         {

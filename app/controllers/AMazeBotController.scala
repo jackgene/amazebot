@@ -8,7 +8,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.stream.Materializer
 import javax.inject.{Inject, Singleton}
 import models.Maze
-import play.api.Configuration
 import play.api.libs.json.JsValue
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
@@ -41,17 +40,17 @@ class AMazeBotController @Inject()(cc: ControllerComponents)
   /**
    * A maze.
    */
-  def maze(name: String): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def maze(name: String, debug: Option[Boolean]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     if (!Maze.byName.contains(name)) NotFound
-    else Ok(views.html.index())
+    else Ok(views.html.index(debug.getOrElse(false)))
   }
 
   /**
     * A random maze with the given seed, or generate a new seed if not provided.
     */
-  def randomMaze(id: Option[String]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def randomMaze(id: Option[String], debug: Option[Boolean]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
     id match {
-      case Some(_: String) => Ok(views.html.index())
+      case Some(_: String) => Ok(views.html.index(debug.getOrElse(false)))
       case None => Redirect(s"/maze/random?id=${Random.nextLong().toHexString}")
     }
   }
