@@ -76,7 +76,7 @@ case object Python extends Language with Logging {
   }
 
   private def instrumentScript(source: String, instrumentFuncName: String): Try[String] =
-    Source.fromString(source).getLines.
+    Source.fromString(source).getLines().
       zipWithIndex.
       map {
         case (IndentLineExtractor(indent, ElseExtractor(elseClause, sentence)), idx: Int) =>

@@ -276,7 +276,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
     case ReadDistanceSensor =>
       val curReadTimeMillis: Long = System.currentTimeMillis()
 
-      sender ! DistanceSensorValue(
+      sender() ! DistanceSensorValue(
         robotState.distanceSensorState match {
           // First read
           case Left(None) => None
@@ -305,7 +305,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
         moveRobot(lastDriveChangeTimeMillis, System.currentTimeMillis(), robotState, robotPosition).
         orientationRad
 
-      sender ! AngleSensorValue(
+      sender() ! AngleSensorValue(
         robotState.orientationRadOnSensorRead.map {
           _ - curOrientationRad
         }
@@ -325,7 +325,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       val newRobotPosition: RobotPosition =
         moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
 
-      sender ! SonarPong(
+      sender() ! SonarPong(
         maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
       )
 
