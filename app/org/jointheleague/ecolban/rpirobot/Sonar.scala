@@ -34,6 +34,7 @@ class Sonar {
         Await.result(
           (simulationRun ? SimulationRunActor.SonarPing(directionRad)).map {
             case SimulationRunActor.SonarPong(distanceMm) => (distanceMm / 10).toInt // Sonar API returns distance in cm
+            case _ => -1
           },
           1.second
         )

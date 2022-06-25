@@ -40,7 +40,7 @@ class AMazeBotController @Inject()(cc: ControllerComponents)
   /**
    * A maze.
    */
-  def maze(name: String, debug: Option[Boolean]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def maze(name: String, debug: Option[Boolean]): Action[AnyContent] = Action {
     if (!Maze.byName.contains(name)) NotFound
     else Ok(views.html.index(debug.getOrElse(false)))
   }
@@ -48,7 +48,7 @@ class AMazeBotController @Inject()(cc: ControllerComponents)
   /**
     * A random maze with the given seed, or generate a new seed if not provided.
     */
-  def randomMaze(id: Option[String], debug: Option[Boolean]): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def randomMaze(id: Option[String], debug: Option[Boolean]): Action[AnyContent] = Action {
     id match {
       case Some(_: String) => Ok(views.html.index(debug.getOrElse(false)))
       case None => Redirect(s"/maze/random?id=${Random.nextLong().toHexString}")
@@ -79,7 +79,7 @@ class AMazeBotController @Inject()(cc: ControllerComponents)
   /**
     * Java code template.
     */
-  def codeTemplate(name: String, ext: String): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+  def codeTemplate(name: String, ext: String): Action[AnyContent] = Action {
     Ok.sendResource(
       s"public/templates/${name}.${ext}" match {
         case templatePath if getClass.getClassLoader.getResource(templatePath) != null => templatePath
