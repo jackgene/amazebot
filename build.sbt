@@ -4,7 +4,37 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.13.8"
+
+scalacOptions ++= Seq(
+  "-deprecation", "-feature",
+  "-Werror",
+  "-Wdead-code",
+  "-Wextra-implicit",
+  "-Wmacros:after",
+  "-Woctal-literal",
+  "-Wvalue-discard",
+  "-Xlint:adapted-args",
+  "-Xlint:constant",
+  "-Xlint:delayedinit-select",
+  "-Xlint:eta-sam",
+  "-Xlint:eta-zero",
+  "-Xlint:implicit-not-found",
+  "-Xlint:implicit-recursion",
+  "-Xlint:inaccessible",
+  "-Xlint:infer-any",
+  "-Xlint:missing-interpolator",
+  "-Xlint:nonlocal-return",
+  "-Xlint:nullary-unit",
+  "-Xlint:option-implicit",
+  "-Xlint:package-object-classes",
+  "-Xlint:poly-implicit-overload",
+  "-Xlint:private-shadow",
+  "-Xlint:serial",
+  "-Xlint:stars-align",
+  "-Xlint:type-parameter-shadow",
+  "-Xlint:valpattern",
+)
 
 libraryDependencies += guice
 libraryDependencies += ws

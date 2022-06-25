@@ -4,7 +4,7 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET     /                          controllers.AMazeBotController.index
+GET     /                          controllers.AMazeBotController.index()
 GET     /maze/random               controllers.AMazeBotController.randomMaze(id: Option[String], debug: Option[Boolean])
 GET     /maze/:name                controllers.AMazeBotController.maze(name: String, debug: Option[Boolean])
 GET     /maze/random/simulation    controllers.AMazeBotController.randomMazeSimulation(id: String)

@@ -51,11 +51,14 @@ case object Java extends Language with Logging {
       }
     }
     compiler.cook(javaSource)
-    val packageName = javaSource match {
+    val packageName: String = javaSource match {
       case PackageNameExtractor(packageName: String) => packageName + "."
       case _ => ""
     }
-    val ClassNameExtractor(className: String) = javaSource
+    val className: String = javaSource match {
+      case ClassNameExtractor(className: String) => className
+      case _ => ""
+    }
 
     val main: Method =
       try {
@@ -68,7 +71,7 @@ case object Java extends Language with Logging {
       }
 
     () => Try[Unit] {
-      main.invoke(null, Array[String]())
+      val _ = main.invoke(null, Array[String]())
     }.recover {
       case e: InvocationTargetException => e.getCause match {
         case cause: Throwable => throw cause

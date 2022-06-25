@@ -15,6 +15,7 @@ import models.{Maze, RobotPosition, RobotProgramStats, RobotState}
 import org.jointheleague.ecolban.rpirobot.IRobotInterface
 import play.api.libs.json.{JsValue, Json}
 
+import scala.annotation.nowarn
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService, Future}
@@ -161,10 +162,9 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
         /**
           * Heavy handed, but ensures that runaway programs get terminated successfully.
           */
-        override def interrupt(): Unit = {
+        @nowarn override def interrupt(): Unit = {
           super.interrupt()
           Thread.sleep(10) // Needed to avoid constant Jython "ThreadDeath"s on Heroku
-          //noinspection ScalaDeprecation
           stop()
         }
       }
@@ -227,7 +227,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
 
   private def sendExecuteLine(execLine: ExecuteLine): Unit = {
     webSocketOut ! Json.toJson(execLine)
-    context.system.scheduler.scheduleOnce(10.millis, self, UpdateExecuteLine)
+    val _ = context.system.scheduler.scheduleOnce(10.millis, self, UpdateExecuteLine)
   }
 
   private def gracefulStop(recentLines: Queue[ExecuteLine]): Unit = {
@@ -276,7 +276,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
     case ReadDistanceSensor =>
       val curReadTimeMillis: Long = System.currentTimeMillis()
 
-      sender ! DistanceSensorValue(
+      sender() ! DistanceSensorValue(
         robotState.distanceSensorState match {
           // First read
           case Left(None) => None
@@ -305,7 +305,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
         moveRobot(lastDriveChangeTimeMillis, System.currentTimeMillis(), robotState, robotPosition).
         orientationRad
 
-      sender ! AngleSensorValue(
+      sender() ! AngleSensorValue(
         robotState.orientationRadOnSensorRead.map {
           _ - curOrientationRad
         }
@@ -325,7 +325,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
       val newRobotPosition: RobotPosition =
         moveRobot(lastDriveChangeTimeMillis, newTimeMillis, robotState, robotPosition)
 
-      sender ! SonarPong(
+      sender() ! SonarPong(
         maze.distanceToClosestObstruction(newRobotPosition, robotRelativeDirectionRad).getOrElse(10000.0)
       )
 
@@ -432,7 +432,7 @@ class SimulationRunActor(webSocketOut: ActorRef, maze: Maze, robotControlScript:
 
   override def postStop(): Unit = {
     viewUpdateScheduler.cancel()
-    executorService.shutdownNow()
+    val _ = executorService.shutdownNow()
   }
 
   // Start simulation

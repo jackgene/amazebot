@@ -23,14 +23,14 @@ case object Python extends Language with Logging {
 
   private case class InstrumentingVisitor(line: Int, source: String, instrumentFuncName: String)
       extends VisitorBase[String] {
-    private def visitAll(nodes: java.util.List[_ <: PythonTree], sep: String): String =
+    private def visitAll(nodes: java.util.List[_ <: PythonTree]): String =
       nodes.asScala.map(_.accept(this)).mkString(";")
 
     // Lines requiring special handling
     private def visitexpr(node: expr): String =
       node.getToken.getInputStream.substring(node.getCharStartIndex, node.getCharStopIndex)
     override def visitFor(node: For): String =
-      s"${node.getText} ${node.getInternalTarget.getText} in ${visitexpr(node.getInternalIter)} ${visitAll(node.getInternalBody, ";")}"
+      s"${node.getText} ${node.getInternalTarget.getText} in ${visitexpr(node.getInternalIter)} ${visitAll(node.getInternalBody)}"
     override def visitFunctionDef(node: FunctionDef): String = {
       // TODO there's probably a better way to do this
       val args: String = node.getInternalArgs.getText match {
@@ -38,12 +38,12 @@ case object Python extends Language with Logging {
         case args: String => args
       }
 
-      s"${node.getText} ${node.getInternalName}(${args}): ${visitAll(node.getInternalBody, ";")}"
+      s"${node.getText} ${node.getInternalName}(${args}): ${visitAll(node.getInternalBody)}"
     }
     override def visitIf(node: If): String =
-      s"${node.getText} ${visitexpr(node.getInternalTest)} ${visitAll(node.getInternalBody, ";")}"
+      s"${node.getText} ${visitexpr(node.getInternalTest)} ${visitAll(node.getInternalBody)}"
     override def visitWhile(node: While): String =
-      s"${node.getText} ${visitexpr(node.getInternalTest)} ${visitAll(node.getInternalBody, ";")}"
+      s"${node.getText} ${visitexpr(node.getInternalTest)} ${visitAll(node.getInternalBody)}"
 
     // Lines not to be instrumented
     override def visitImport(node: Import): String = source
@@ -76,7 +76,7 @@ case object Python extends Language with Logging {
   }
 
   private def instrumentScript(source: String, instrumentFuncName: String): Try[String] =
-    Source.fromString(source).getLines.
+    Source.fromString(source).getLines().
       zipWithIndex.
       map {
         case (IndentLineExtractor(indent, ElseExtractor(elseClause, sentence)), idx: Int) =>

@@ -78,11 +78,11 @@ object Language {
                 super.visitMethodInsn(opcode, owner, name, desc, itf)
               }
 
-              override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: Object*): Unit = {
-                instrumentIfNecessary()
-                super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs: _*)
-              }
-
+//              override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: Object*): Unit = {
+//                instrumentIfNecessary()
+//                super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs: _*)
+//              }
+//
               override def visitJumpInsn(opcode: Int, label: Label): Unit = {
                 instrumentIfNecessary()
                 super.visitJumpInsn(opcode, label)
@@ -98,11 +98,11 @@ object Language {
                 super.visitIincInsn(`var`, increment)
               }
 
-              override def visitTableSwitchInsn(min: Int, max: Int, dflt: Label, labels: Label*): Unit = {
-                instrumentIfNecessary()
-                super.visitTableSwitchInsn(min, max, dflt, labels: _*)
-              }
-
+//              override def visitTableSwitchInsn(min: Int, max: Int, dflt: Label, labels: Label*): Unit = {
+//                instrumentIfNecessary()
+//                super.visitTableSwitchInsn(min, max, dflt, labels: _*)
+//              }
+//
               override def visitLookupSwitchInsn(dflt: Label, keys: Array[Int], labels: Array[Label]): Unit = {
                 instrumentIfNecessary()
                 super.visitLookupSwitchInsn(dflt, keys, labels)
