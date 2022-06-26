@@ -7,6 +7,7 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.13.8"
 
 scalacOptions ++= Seq(
+  "-Xsource:3",
   "-deprecation", "-feature",
   "-Werror",
   "-Wdead-code",
@@ -114,7 +115,7 @@ elmMake := {
   }
 }
 
-sourceGenerators in Assets += elmMake.taskValue
+Assets / sourceGenerators += elmMake.taskValue
 
 lazy val elmMakeDebug = taskKey[Seq[File]]("elm-make-debug")
 
@@ -184,4 +185,4 @@ elmMakeDebug := {
   }
 }
 
-sourceGenerators in Assets += elmMakeDebug.taskValue
+Assets / sourceGenerators += elmMakeDebug.taskValue
