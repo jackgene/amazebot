@@ -114,7 +114,7 @@ elmMake := {
   }
 }
 
-sourceGenerators in Assets += elmMake.taskValue
+Assets / sourceGenerators += elmMake.taskValue
 
 lazy val elmMakeDebug = taskKey[Seq[File]]("elm-make-debug")
 
@@ -184,4 +184,4 @@ elmMakeDebug := {
   }
 }
 
-sourceGenerators in Assets += elmMakeDebug.taskValue
+Assets / sourceGenerators += elmMakeDebug.taskValue
